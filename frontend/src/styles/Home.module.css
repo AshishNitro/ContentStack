@@ -1,0 +1,24 @@
+.layoutContainer {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--color-surface-base);
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.centerMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-family: var(--font-display);
+  color: var(--color-text-secondary);
+  font-size: 18px;
+}
