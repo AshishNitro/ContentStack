@@ -1,0 +1,96 @@
+:root {
+  /* Palette - Structured Dark Mode */
+  --color-surface-base: #111110;
+  --color-surface-elevated: #1c1c1a;
+  --color-border: #30302e;
+  --color-text-primary: #f2f2f2;
+  --color-text-secondary: #8e8e8b;
+  --color-accent: var(--dynamic-accent, #7568f0);
+  --color-accent-subtle: color-mix(in srgb, var(--color-accent) 20%, transparent);
+
+  /* Typography */
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--color-surface-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Base structural layout */
+.layout-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 280px;
+  background-color: var(--color-surface-elevated);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-surface-base);
+}
+
+/* Typography styles */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-size: 24px;
+  color: var(--color-text-primary);
+}
+
+p {
+  color: var(--color-text-secondary);
+}
+
+/* Custom UI Elements */
+.divider {
+  height: 1px;
+  background-color: var(--color-border);
+  margin: 24px 0;
+}
+
+button {
+  background: none;
+  border: none;
+  font-family: var(--font-body);
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+
+input, textarea, select {
+  font-family: var(--font-body);
+  background: var(--color-surface-base);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+textarea:focus, input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
