@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import db, { saveDb, Post } from '../database';
+import pool, { Post, Domain, Region } from '../database';
 
 // Types for requests
 interface CreatePostRequest {
@@ -9,38 +9,46 @@ interface CreatePostRequest {
   content: string;
 }
 
-export const getDomains = (req: Request, res: Response) => {
+export const getDomains = async (req: Request, res: Response) => {
   try {
-    const domainsWithRegions = db.domains.map(domain => ({
+    const domainsResult = await pool.query<Domain>('SELECT * FROM domains ORDER BY id');
+    const regionsResult = await pool.query<Region>('SELECT * FROM regions ORDER BY id');
+    
+    const domainsWithRegions = domainsResult.rows.map(domain => ({
       ...domain,
-      regions: db.regions.filter(r => r.domain_id === domain.id)
+      regions: regionsResult.rows.filter(r => r.domain_id === domain.id)
     }));
 
     res.json(domainsWithRegions);
   } catch (error) {
+    console.error('Failed to fetch domains', error);
     res.status(500).json({ error: 'Failed to fetch domains' });
   }
 };
 
-export const getPosts = (req: Request, res: Response) => {
+export const getPosts = async (req: Request, res: Response) => {
   try {
     const domainId = req.query.domainId ? Number(req.query.domainId) : null;
     
-    let posts = db.posts;
+    let query = 'SELECT * FROM posts';
+    const values: any[] = [];
+
     if (domainId) {
-      posts = posts.filter(p => p.domain_id === domainId);
+      query += ' WHERE domain_id = $1';
+      values.push(domainId);
     }
     
-    // Sort by created_at DESC
-    posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    
-    res.json(posts);
+    query += ' ORDER BY created_at DESC';
+
+    const result = await pool.query<Post>(query, values);
+    res.json(result.rows);
   } catch (error) {
+    console.error('Failed to fetch posts', error);
     res.status(500).json({ error: 'Failed to fetch posts' });
   }
 };
 
-export const createPost = (req: Request<{}, {}, CreatePostRequest>, res: Response) => {
+export const createPost = async (req: Request<{}, {}, CreatePostRequest>, res: Response) => {
   try {
     const { domainId, regionId, title, content } = req.body;
 
@@ -48,22 +56,18 @@ export const createPost = (req: Request<{}, {}, CreatePostRequest>, res: Respons
       return res.status(400).json({ error: 'domainId, title, and content are required fields.' });
     }
 
-    const newId = db.posts.length > 0 ? Math.max(...db.posts.map(p => p.id)) + 1 : 1;
+    const query = `
+      INSERT INTO posts (domain_id, region_id, title, content)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `;
+    const values = [domainId, regionId || null, title, content];
 
-    const newPost: Post = {
-      id: newId,
-      domain_id: domainId,
-      region_id: regionId || null,
-      title,
-      content,
-      created_at: new Date().toISOString()
-    };
-
-    db.posts.push(newPost);
-    saveDb();
+    const result = await pool.query<Post>(query, values);
     
-    res.status(201).json(newPost);
+    res.status(201).json(result.rows[0]);
   } catch (error) {
+    console.error('Failed to create post', error);
     res.status(500).json({ error: 'Failed to create post' });
   }
 };
