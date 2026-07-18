@@ -39,6 +39,22 @@
       "title": "Hello World: Our First Post",
       "content": "# Welcome\\n\\nThis is our first post written in **Markdown**.\\n\\nEnjoy the multi-domain blog manager!",
       "created_at": "2026-07-17T09:40:25.271Z"
+    },
+    {
+      "id": 2,
+      "domain_id": 2,
+      "region_id": null,
+      "title": "heelo ashish",
+      "content": "## Ashish shartma testing \n---\nheelo ",
+      "created_at": "2026-07-17T10:01:11.413Z"
+    },
+    {
+      "id": 3,
+      "domain_id": 2,
+      "region_id": 3,
+      "title": "adasdasda ad ad",
+      "content": "dasdasd asd asd asdasda\nda\nsdaw\ndaw\nfaw\nfaw\nfa\nfawf",
+      "created_at": "2026-07-17T10:01:38.220Z"
     }
   ]
 }
