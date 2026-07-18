@@ -3,7 +3,7 @@
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background-color: var(--color-surface-base);
+  background: var(--color-bg);
 }
 
 .mainContent {
@@ -11,14 +11,25 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  background: var(--color-bg);
 }
 
 .centerMessage {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
-  font-family: var(--font-display);
+  gap: 12px;
+  animation: fade-in 0.4s ease both;
+}
+
+.centerMessage svg {
+  color: var(--color-text-muted);
+}
+
+.centerMessage span {
+  font-size: 15px;
   color: var(--color-text-secondary);
-  font-size: 18px;
+  font-weight: 500;
 }

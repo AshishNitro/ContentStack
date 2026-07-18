@@ -1,81 +1,191 @@
+/* ── Sidebar Shell ── */
 .sidebar {
-  width: 320px;
-  background-color: var(--color-surface-elevated);
+  width: 268px;
+  min-width: 268px;
+  background: var(--color-surface);
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-  padding: 32px 24px;
   height: 100vh;
+  overflow: hidden;
 }
 
-.header h1 {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 4px;
+/* ── Header / Logo ── */
+.header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 
-.subtitle {
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-secondary);
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.domainButton {
+.logoMark {
   display: flex;
   align-items: center;
-  gap: 16px;
-  width: 100%;
-  padding: 16px;
+  gap: 10px;
+}
+
+.logoIcon {
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
-  text-align: left;
-  transition: all 0.2s ease;
-  background: transparent;
-  border: 1px solid transparent;
+  background: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 
-.domainButton:hover {
-  background: var(--color-surface-base);
+.appName {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.03em;
 }
 
-.domainIndicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--color-border);
-  transition: background-color 0.2s ease;
+/* ── Section Label ── */
+.sectionLabel {
+  padding: 16px 20px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
 }
 
-.domainButton.active {
-  background: var(--color-surface-base);
-  border: 1px solid var(--color-border);
-}
-
-.domainButton.active .domainIndicator {
-  background-color: var(--color-accent);
-  box-shadow: 0 0 12px var(--color-accent-subtle);
-}
-
-.domainDetails {
+/* ── Nav ── */
+.nav {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: 0 10px;
+  overflow-y: auto;
+}
+
+/* ── Domain Cards ── */
+.domainButton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 10px;
+  border-radius: var(--radius-md);
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+  animation: fade-in 0.3s ease both;
+}
+
+.domainButton:nth-child(2) { animation-delay: 0.04s; }
+.domainButton:nth-child(3) { animation-delay: 0.08s; }
+.domainButton:nth-child(4) { animation-delay: 0.12s; }
+
+.domainButton:hover {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-border);
+}
+
+.domainButton.active {
+  background: var(--color-accent-light);
+  border-color: var(--color-border-focus);
+}
+
+/* Status dot */
+.domainIndicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-border);
+  flex-shrink: 0;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.domainButton.active .domainIndicator {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-subtle);
+}
+
+/* Domain text */
+.domainDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
 }
 
 .domainName {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--color-text-primary);
-  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .domainUrl {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.domainButton.active .domainName {
+  color: var(--color-accent);
+}
+
+/* Preview link */
+.previewLink {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-accent);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-subtle);
+  border: 1px solid var(--color-border-focus);
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.domainButton:hover .previewLink,
+.domainButton.active .previewLink {
+  opacity: 1;
+}
+
+.previewLink:hover {
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+  border-color: var(--color-accent);
+}
+
+/* ── Footer ── */
+.sidebarFooter {
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.footerStatus {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 12px;
   color: var(--color-text-secondary);
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-green);
+  flex-shrink: 0;
 }

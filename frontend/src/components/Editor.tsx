@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Domain, Region, createPost } from '../services/api';
+import { Domain, createPost } from '../services/api';
 import styles from './Editor.module.css';
 
 interface EditorProps {
@@ -20,7 +20,7 @@ export default function Editor({ activeDomain }: EditorProps) {
         domainId: activeDomain.id,
         regionId: regionId ? Number(regionId) : undefined,
         title,
-        content
+        content,
       });
       setStatus('saved');
       setTimeout(() => setStatus('idle'), 3000);
@@ -32,49 +32,65 @@ export default function Editor({ activeDomain }: EditorProps) {
     }
   };
 
+  const publishLabel =
+    status === 'saving' ? 'Publishing…' :
+    status === 'saved'  ? '✓ Published' :
+    'Publish';
+
   return (
     <div className={styles.editorContainer}>
+
+      {/* ── Top Bar ── */}
       <header className={styles.editorHeader}>
         <div className={styles.meta}>
           <span className={styles.publishingTo}>Publishing to</span>
+          <span className={styles.metaArrow}>›</span>
           <h2 className={styles.domainDisplay}>{activeDomain.name}</h2>
         </div>
         <div className={styles.actions}>
-          <select 
+          <select
+            id="region-select"
             className={styles.regionSelect}
             value={regionId}
             onChange={(e) => setRegionId(e.target.value ? Number(e.target.value) : '')}
           >
-            <option value="">Select Region (Optional)</option>
-            {activeDomain.regions.map(r => (
+            <option value="">All regions</option>
+            {activeDomain.regions.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
-          <button 
-            className={styles.publishBtn} 
+          <button
+            id="publish-btn"
+            className={styles.publishBtn}
             onClick={handleSave}
             disabled={status === 'saving' || !title || !content}
           >
-            {status === 'saving' ? 'Publishing...' : status === 'saved' ? 'Published' : 'Publish'}
+            {publishLabel}
           </button>
         </div>
       </header>
-      
+
+      {/* ── Writing Surface ── */}
       <div className={styles.writingSurface}>
-        <input 
-          type="text" 
-          className={styles.titleInput} 
-          placeholder="Post title..." 
+        <input
+          id="post-title"
+          type="text"
+          className={styles.titleInput}
+          placeholder="Post title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          autoComplete="off"
         />
-        <textarea 
-          className={styles.markdownArea} 
-          placeholder="Start writing in markdown..."
+        <div className={styles.divider} />
+        <textarea
+          id="post-content"
+          className={styles.markdownArea}
+          placeholder="Start writing… (markdown supported)"
           value={content}
           onChange={(e) => setContent(e.target.value)}
         />
       </div>
+
     </div>
   );
 }
