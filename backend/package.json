@@ -4,10 +4,10 @@
   "description": "Multi-domain blog manager backend API",
   "main": "src/app.ts",
   "scripts": {
-    "start": "ts-node src/app.ts",
+    "start": "node dist/app.js",
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "tsc",
-    "db:setup": "node -e \"const{Pool}=require('pg');require('dotenv').config();const fs=require('fs');const p=new Pool({connectionString:process.env.DATABASE_URL});p.query(fs.readFileSync('../database/schema.sql','utf8')).then(()=>{console.log('Schema created');p.end()}).catch(e=>{console.error(e.message);p.end()})\"",
+    "db:setup": "node -e \"const{Pool}=require('pg');require('dotenv').config();const fs=require('fs');const ssl=process.env.DATABASE_URL?.includes('neon.tech')||process.env.DATABASE_URL?.includes('sslmode')?{rejectUnauthorized:false}:undefined;const p=new Pool({connectionString:process.env.DATABASE_URL,ssl});p.query(fs.readFileSync('../database/schema.sql','utf8')).then(()=>{console.log('Schema created');p.end()}).catch(e=>{console.error(e.message);p.end()})\"",
     "db:seed": "node seed-db.js"
   },
   "dependencies": {

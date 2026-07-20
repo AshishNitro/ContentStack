@@ -3,8 +3,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createPost = exports.getPosts = exports.getDomains = void 0;
+exports.createPost = exports.getPosts = exports.getDomains = exports.getPost = void 0;
 const database_1 = __importDefault(require("../database"));
+const getPost = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await database_1.default.query('SELECT * FROM posts WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
+        res.json(result.rows[0]);
+    }
+    catch (error) {
+        console.error('Failed to fetch post', error);
+        res.status(500).json({ error: 'Failed to fetch post' });
+    }
+};
+exports.getPost = getPost;
 const getDomains = async (req, res) => {
     try {
         const domainsResult = await database_1.default.query('SELECT * FROM domains ORDER BY id');

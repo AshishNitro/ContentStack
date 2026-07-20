@@ -1,6 +1,7 @@
 const { Pool } = require("pg");
 require("dotenv").config({ path: require("path").resolve(__dirname, ".env") });
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const ssl = process.env.DATABASE_URL?.includes('neon.tech') || process.env.DATABASE_URL?.includes('sslmode') ? { rejectUnauthorized: false } : undefined;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl });
 async function seed() {
   const client = await pool.connect();
   try {
