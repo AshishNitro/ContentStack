@@ -37,6 +37,12 @@ export async function fetchPosts(domainId?: number): Promise<Post[]> {
   return res.json();
 }
 
+export async function fetchPost(postId: number): Promise<Post> {
+  const res = await fetch(`${API_BASE}/posts/${postId}`);
+  if (!res.ok) throw new Error('Failed to fetch post');
+  return res.json();
+}
+
 export async function createPost(payload: { domainId: number; regionId?: number; title: string; content: string }): Promise<Post> {
   const res = await fetch(`${API_BASE}/posts`, {
     method: 'POST',

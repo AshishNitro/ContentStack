@@ -6,7 +6,9 @@
   "scripts": {
     "start": "ts-node src/app.ts",
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "db:setup": "node -e \"const{Pool}=require('pg');require('dotenv').config();const fs=require('fs');const p=new Pool({connectionString:process.env.DATABASE_URL});p.query(fs.readFileSync('../database/schema.sql','utf8')).then(()=>{console.log('Schema created');p.end()}).catch(e=>{console.error(e.message);p.end()})\"",
+    "db:seed": "node seed-db.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

@@ -3,10 +3,18 @@ INSERT INTO domains (id, name, url) VALUES
 (2, 'Lifestyle (Domain B)', 'https://lifestyle.example.com')
 ON CONFLICT DO NOTHING;
 
+-- Regions use country ISO codes as slugs.
+-- These map directly to URL prefixes via Next.js i18n:
+--   example.com/us  → United States
+--   example.com/in  → India
+--   example.com/eu  → Europe
 INSERT INTO regions (id, domain_id, name, slug) VALUES
-(1, 1, 'Software Engineering', 'software-engineering'),
-(2, 1, 'Hardware', 'hardware'),
-(3, 2, 'Travel', 'travel')
+(1, 1, 'United States', 'us'),
+(2, 1, 'India', 'in'),
+(3, 1, 'Europe', 'eu'),
+(4, 2, 'United States', 'us'),
+(5, 2, 'India', 'in'),
+(6, 2, 'Europe', 'eu')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO posts (id, domain_id, region_id, title, content, created_at) VALUES

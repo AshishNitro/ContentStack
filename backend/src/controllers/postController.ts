@@ -1,6 +1,20 @@
 import { Request, Response } from 'express';
 import pool, { Post, Domain, Region } from '../database';
 
+export const getPost = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query<Post>('SELECT * FROM posts WHERE id = $1', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Failed to fetch post', error);
+    res.status(500).json({ error: 'Failed to fetch post' });
+  }
+};
+
 // Types for requests
 interface CreatePostRequest {
   domainId: number;
