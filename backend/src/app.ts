@@ -29,8 +29,8 @@ async function isAllowedOrigin(origin?: string) {
 
   const host = new URL(normalizedOrigin).host.replace(/^www\./, '');
   const result = await pool.query(
-    "SELECT id FROM domains WHERE LOWER(host) = LOWER($1) AND status = 'active' LIMIT 1",
-    [host]
+    "SELECT id FROM domains WHERE LOWER(host) = LOWER($1) OR LOWER(host) = LOWER($2) LIMIT 1",
+    [host, `www.${host}`]
   );
 
   return result.rows.length > 0;

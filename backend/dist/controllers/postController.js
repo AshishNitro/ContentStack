@@ -239,13 +239,43 @@ exports.verifyDomain = verifyDomain;
 const getPosts = async (req, res) => {
     try {
         const domainId = req.query.domainId ? Number(req.query.domainId) : null;
-        let query = 'SELECT * FROM posts';
+        const regionIdParam = req.query.regionId ? Number(req.query.regionId) : null;
+        const regionSlug = req.query.region ? String(req.query.region).toLowerCase().trim() : null;
+        const scope = req.query.scope ? String(req.query.scope).toLowerCase().trim() : null;
+        let query = 'SELECT p.* FROM posts p';
+        const conditions = [];
         const values = [];
         if (domainId) {
-            query += ' WHERE domain_id = $1';
             values.push(domainId);
+            conditions.push(`p.domain_id = $${values.length}`);
         }
-        query += ' ORDER BY created_at DESC';
+        let targetRegionId = regionIdParam;
+        if (!targetRegionId && regionSlug && domainId) {
+            const regionRes = await database_1.default.query('SELECT id FROM regions WHERE domain_id = $1 AND LOWER(slug) = $2 LIMIT 1', [domainId, regionSlug]);
+            if (regionRes.rows.length > 0) {
+                targetRegionId = regionRes.rows[0].id;
+            }
+        }
+        if (scope === 'global_only') {
+            conditions.push('p.region_id IS NULL');
+        }
+        else if (scope === 'region_only') {
+            if (targetRegionId) {
+                values.push(targetRegionId);
+                conditions.push(`p.region_id = $${values.length}`);
+            }
+            else if (regionSlug) {
+                conditions.push('1 = 0');
+            }
+        }
+        else if (targetRegionId) {
+            values.push(targetRegionId);
+            conditions.push(`p.region_id = $${values.length}`);
+        }
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+        query += ' ORDER BY p.created_at DESC';
         const result = await database_1.default.query(query, values);
         res.json(result.rows);
     }
