@@ -42,8 +42,18 @@ export async function fetchDomains(): Promise<Domain[]> {
   return res.json();
 }
 
-export async function fetchPosts(domainId?: number): Promise<Post[]> {
-  const url = domainId ? `${API_BASE}/posts?domainId=${domainId}` : `${API_BASE}/posts`;
+export async function fetchPosts(
+  domainId?: number,
+  options?: { region?: string; regionId?: number; scope?: 'region_only' | 'global_only' | 'all' }
+): Promise<Post[]> {
+  const params = new URLSearchParams();
+  if (domainId) params.set('domainId', String(domainId));
+  if (options?.region) params.set('region', options.region);
+  if (options?.regionId) params.set('regionId', String(options.regionId));
+  if (options?.scope) params.set('scope', options.scope);
+
+  const queryString = params.toString();
+  const url = queryString ? `${API_BASE}/posts?${queryString}` : `${API_BASE}/posts`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch posts');
   return res.json();

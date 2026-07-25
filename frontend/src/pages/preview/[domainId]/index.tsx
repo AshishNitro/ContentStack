@@ -36,6 +36,7 @@ export default function Preview() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCustomDomainView, setIsCustomDomainView] = useState(false);
+  const [filterMode, setFilterMode] = useState<'strict' | 'all'>('strict');
 
   useEffect(() => {
     if (!domainId) return;
@@ -53,21 +54,16 @@ export default function Preview() {
           setIsCustomDomainView(normalizeHost(window.location.host) === normalizeHost(found.host));
         }
 
-        const domainPosts = await fetchPosts(found.id);
-        let currentRegionId: number | null = null;
-
-        if (currentLocale) {
-          const region = found.regions.find(item => item.slug === currentLocale);
-          if (region) currentRegionId = region.id;
+        let domainPosts: Post[] = [];
+        if (filterMode === 'all') {
+          domainPosts = await fetchPosts(found.id);
+        } else if (currentLocale) {
+          domainPosts = await fetchPosts(found.id, { region: currentLocale, scope: 'region_only' });
+        } else {
+          domainPosts = await fetchPosts(found.id, { scope: 'global_only' });
         }
 
-        const filteredPosts = domainPosts.filter(post => (
-          currentRegionId !== null
-            ? post.region_id === currentRegionId || post.region_id === null
-            : true
-        ));
-
-        setPosts(filteredPosts);
+        setPosts(domainPosts);
       } catch (error) {
         console.error('Failed to load preview data', error);
       } finally {
@@ -76,7 +72,7 @@ export default function Preview() {
     };
 
     loadData();
-  }, [domainId, currentLocale]);
+  }, [domainId, currentLocale, filterMode]);
 
   if (loading) {
     return (
@@ -102,6 +98,14 @@ export default function Preview() {
     ? `${domain.url.replace(/\/$/, '')}/${currentLocale}`
     : domain.url;
   const activeCountryMeta = currentLocale ? getCountryMeta(currentLocale) : null;
+
+  const getPostRegionMeta = (post: Post) => {
+    if (!post.region_id) return { flag: '🌐', label: 'Global' };
+    const region = domain.regions.find(r => r.id === post.region_id);
+    if (!region) return { flag: '🌐', label: 'Global' };
+    const meta = getCountryMeta(region.slug);
+    return { flag: meta.flag, label: region.slug.toUpperCase() };
+  };
 
   const buildPostHref = (postId: number) => {
     if (isCustomDomainView) {
@@ -198,11 +202,33 @@ export default function Preview() {
                 {domain.regions.length} {domain.regions.length === 1 ? 'region' : 'regions'}
               </span>
             )}
-            {currentLocale && (
+            {currentLocale ? (
               <span className={styles.statChipCountry}>
-                Viewing /{currentLocale}
+                Showing /{currentLocale} content only
+              </span>
+            ) : (
+              <span className={styles.statChipCountry}>
+                Showing Global content only
               </span>
             )}
+
+            <button
+              type="button"
+              onClick={() => setFilterMode(m => m === 'strict' ? 'all' : 'strict')}
+              style={{
+                marginLeft: 'auto',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#5B57D1',
+                background: '#F0F0FF',
+                border: '1px solid #D8D7FF',
+                borderRadius: '6px',
+                padding: '3px 10px',
+                cursor: 'pointer',
+              }}
+            >
+              {filterMode === 'strict' ? '👁 View All Domain Posts' : '🔒 Show Isolated Region Content'}
+            </button>
           </div>
         </header>
 
@@ -210,44 +236,60 @@ export default function Preview() {
           {posts.length === 0 ? (
             <div className={styles.noPosts}>
               <div className={styles.noPostsIcon}>+</div>
-              <p className={styles.noPostsText}>No posts yet</p>
-              <p className={styles.noPostsHint}>Publish something from the Blog Manager to see it here.</p>
+              <p className={styles.noPostsText}>No posts found for this region</p>
+              <p className={styles.noPostsHint}>Publish content specifically targeted for {currentLocale ? `/${currentLocale}` : 'Global'} from the Blog Manager.</p>
             </div>
           ) : (
-            posts.map((post, index) => (
-              <article
-                key={post.id}
-                className={styles.postCard}
-                style={{ animationDelay: `${index * 0.06}s` }}
-              >
-                <time className={styles.postDate}>
-                  {new Date(post.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </time>
-                <h2 className={styles.postTitle}>
+            posts.map((post, index) => {
+              const regionMeta = getPostRegionMeta(post);
+              return (
+                <article
+                  key={post.id}
+                  className={styles.postCard}
+                  style={{ animationDelay: `${index * 0.06}s` }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <time className={styles.postDate}>
+                      {new Date(post.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </time>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: '#5B57D1',
+                      background: '#F0F0FF',
+                      border: '1px solid #D8D7FF',
+                      borderRadius: '12px',
+                      padding: '2px 8px',
+                    }}>
+                      {regionMeta.flag} {regionMeta.label}
+                    </span>
+                  </div>
+                  <h2 className={styles.postTitle}>
+                    <Link
+                      href={buildPostHref(post.id)}
+                      locale={currentLocale ?? 'default'}
+                      className={styles.postTitleLink}
+                    >
+                      {post.title}
+                    </Link>
+                  </h2>
+                  <div className={styles.postExcerpt}>
+                    <ReactMarkdown>{post.content.slice(0, 200) + (post.content.length > 200 ? '...' : '')}</ReactMarkdown>
+                  </div>
                   <Link
                     href={buildPostHref(post.id)}
                     locale={currentLocale ?? 'default'}
-                    className={styles.postTitleLink}
+                    className={styles.readMore}
                   >
-                    {post.title}
+                    Read article
                   </Link>
-                </h2>
-                <div className={styles.postExcerpt}>
-                  <ReactMarkdown>{post.content.slice(0, 200) + (post.content.length > 200 ? '...' : '')}</ReactMarkdown>
-                </div>
-                <Link
-                  href={buildPostHref(post.id)}
-                  locale={currentLocale ?? 'default'}
-                  className={styles.readMore}
-                >
-                  Read article
-                </Link>
-              </article>
-            ))
+                </article>
+              );
+            })
           )}
         </main>
       </div>
