@@ -6,35 +6,36 @@ import ReactMarkdown from 'react-markdown';
 import { Domain, Post, fetchDomains, fetchPosts } from '../../../services/api';
 import styles from '../../../styles/Preview.module.css';
 
-// Country metadata: slug → flag + display label
 const COUNTRY_META: Record<string, { flag: string; label: string }> = {
-  us: { flag: '🇺🇸', label: 'United States' },
-  in: { flag: '🇮🇳', label: 'India' },
-  eu: { flag: '🇪🇺', label: 'Europe' },
-  uk: { flag: '🇬🇧', label: 'United Kingdom' },
-  au: { flag: '🇦🇺', label: 'Australia' },
-  ca: { flag: '🇨🇦', label: 'Canada' },
-  de: { flag: '🇩🇪', label: 'Germany' },
-  fr: { flag: '🇫🇷', label: 'France' },
-  jp: { flag: '🇯🇵', label: 'Japan' },
-  br: { flag: '🇧🇷', label: 'Brazil' },
+  us: { flag: 'US', label: 'United States' },
+  in: { flag: 'IN', label: 'India' },
+  eu: { flag: 'EU', label: 'Europe' },
+  uk: { flag: 'UK', label: 'United Kingdom' },
+  au: { flag: 'AU', label: 'Australia' },
+  ca: { flag: 'CA', label: 'Canada' },
+  de: { flag: 'DE', label: 'Germany' },
+  fr: { flag: 'FR', label: 'France' },
+  jp: { flag: 'JP', label: 'Japan' },
+  br: { flag: 'BR', label: 'Brazil' },
 };
 
 function getCountryMeta(slug: string) {
-  return COUNTRY_META[slug] ?? { flag: '🌐', label: slug.toUpperCase() };
+  return COUNTRY_META[slug] ?? { flag: slug.toUpperCase(), label: slug.toUpperCase() };
+}
+
+function normalizeHost(host: string) {
+  return host.replace(/^www\./, '').toLowerCase();
 }
 
 export default function Preview() {
   const router = useRouter();
   const { domainId } = router.query;
+  const currentLocale = router.locale && router.locale !== 'default' ? router.locale : null;
 
   const [domain, setDomain] = useState<Domain | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Current locale (country slug) — null means Global
-  const currentLocale =
-    router.locale && router.locale !== 'default' ? router.locale : null;
+  const [isCustomDomainView, setIsCustomDomainView] = useState(false);
 
   useEffect(() => {
     if (!domainId) return;
@@ -43,29 +44,32 @@ export default function Preview() {
       try {
         setLoading(true);
         const domains = await fetchDomains();
-        const found = domains.find(d => d.id === Number(domainId));
-        if (found) {
-          setDomain(found);
-          const domainPosts = await fetchPosts(found.id);
+        const found = domains.find(item => item.id === Number(domainId));
+        if (!found) return;
 
-          let currentRegionId: number | null = null;
-          if (currentLocale) {
-            const r = found.regions.find(reg => reg.slug === currentLocale);
-            if (r) {
-              currentRegionId = r.id;
-            }
-          }
+        setDomain(found);
 
-          const filteredPosts = domainPosts.filter(p =>
-            currentRegionId !== null
-              ? p.region_id === currentRegionId || p.region_id === null
-              : true
-          );
-
-          setPosts(filteredPosts);
+        if (typeof window !== 'undefined') {
+          setIsCustomDomainView(normalizeHost(window.location.host) === normalizeHost(found.host));
         }
-      } catch (err) {
-        console.error('Failed to load preview data', err);
+
+        const domainPosts = await fetchPosts(found.id);
+        let currentRegionId: number | null = null;
+
+        if (currentLocale) {
+          const region = found.regions.find(item => item.slug === currentLocale);
+          if (region) currentRegionId = region.id;
+        }
+
+        const filteredPosts = domainPosts.filter(post => (
+          currentRegionId !== null
+            ? post.region_id === currentRegionId || post.region_id === null
+            : true
+        ));
+
+        setPosts(filteredPosts);
+      } catch (error) {
+        console.error('Failed to load preview data', error);
       } finally {
         setLoading(false);
       }
@@ -79,7 +83,7 @@ export default function Preview() {
       <div className={styles.loadingState}>
         <Head><title>Loading Preview...</title></Head>
         <div className={styles.spinner} />
-        <span className={styles.loadingText}>Loading preview…</span>
+        <span className={styles.loadingText}>Loading preview...</span>
       </div>
     );
   }
@@ -89,22 +93,38 @@ export default function Preview() {
       <div className={styles.loadingState}>
         <Head><title>Not Found</title></Head>
         <span className={styles.loadingText}>Domain not found.</span>
-        <Link href="/" className={styles.backButton}>← Return to Manager</Link>
+        <Link href="/" className={styles.backButton}>Return to Manager</Link>
       </div>
     );
   }
 
-  // Build the URL that represents the current view
   const activeCountryUrl = currentLocale
     ? `${domain.url.replace(/\/$/, '')}/${currentLocale}`
     : domain.url;
-
   const activeCountryMeta = currentLocale ? getCountryMeta(currentLocale) : null;
+
+  const buildPostHref = (postId: number) => {
+    if (isCustomDomainView) {
+      if (currentLocale) {
+        return `/${currentLocale}/${postId}`;
+      }
+      return `/${postId}`;
+    }
+
+    return `/preview/${domain.id}/${postId}`;
+  };
+
+  const buildDomainHref = () => {
+    if (isCustomDomainView) {
+      return currentLocale ? `/${currentLocale}` : '/';
+    }
+    return `/preview/${domain.id}`;
+  };
 
   return (
     <div className={styles.container}>
       <Head>
-        <title>{domain.name}{currentLocale ? ` · /${currentLocale}` : ''} — Preview</title>
+        <title>{domain.name}{currentLocale ? ` /${currentLocale}` : ''}</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -113,51 +133,55 @@ export default function Preview() {
         />
       </Head>
 
-      {/* ── Sticky Navbar ── */}
       <nav className={styles.navbar}>
         <div className={styles.navLeft}>
-          <Link href="/" className={styles.backButton}>
-            ← Manager
-          </Link>
-          <div className={styles.navDivider} />
+          {!isCustomDomainView && (
+            <>
+              <Link href="/" className={styles.backButton}>
+                Manager
+              </Link>
+              <div className={styles.navDivider} />
+            </>
+          )}
+
           <span className={styles.navDomainName}>{domain.name}</span>
 
           <div className={styles.regionSwitcher}>
             <Link
-              href={`/preview/${domain.id}`}
+              href={buildDomainHref()}
               locale="default"
-              className={(!currentLocale) ? styles.activeRegion : styles.regionLink}
+              className={!currentLocale ? styles.activeRegion : styles.regionLink}
             >
-              🌐 Global
+              Global
             </Link>
-            {domain.regions.map(r => {
-              const meta = getCountryMeta(r.slug);
+            {domain.regions.map(region => {
+              const meta = getCountryMeta(region.slug);
               return (
                 <Link
-                  key={r.id}
-                  href={`/preview/${domain.id}`}
-                  locale={r.slug}
-                  className={currentLocale === r.slug ? styles.activeRegion : styles.regionLink}
-                  title={`View as ${meta.label} · ${domain.url.replace(/\/$/, '')}/${r.slug}`}
+                  key={region.id}
+                  href={buildDomainHref()}
+                  locale={region.slug}
+                  className={currentLocale === region.slug ? styles.activeRegion : styles.regionLink}
+                  title={`View as ${meta.label}`}
                 >
-                  {meta.flag} {r.slug.toUpperCase()}
+                  {meta.flag} {region.slug.toUpperCase()}
                 </Link>
               );
             })}
           </div>
         </div>
-        <div className={styles.previewBadge}>
-          <span className={styles.previewBadgeDot} />
-          Preview
-        </div>
+
+        {!isCustomDomainView && (
+          <div className={styles.previewBadge}>
+            <span className={styles.previewBadgeDot} />
+            Preview
+          </div>
+        )}
       </nav>
 
-      {/* ── Page Body ── */}
       <div className={styles.body}>
-
-        {/* Header */}
         <header className={styles.header}>
-          <p className={styles.domainLabel}>Domain Preview</p>
+          <p className={styles.domainLabel}>{isCustomDomainView ? 'Published Domain' : 'Domain Preview'}</p>
           <h1 className={styles.domainName}>
             {domain.name}
             {activeCountryMeta && (
@@ -167,77 +191,66 @@ export default function Preview() {
           <div className={styles.domainUrl}>{activeCountryUrl}</div>
           <div className={styles.headerStats}>
             <span className={styles.statChip}>
-              📄 {posts.length} {posts.length === 1 ? 'post' : 'posts'}
+              {posts.length} {posts.length === 1 ? 'post' : 'posts'}
             </span>
-            {domain.regions && domain.regions.length > 0 && (
+            {domain.regions.length > 0 && (
               <span className={styles.statChip}>
-                🌍 {domain.regions.length} {domain.regions.length === 1 ? 'region' : 'regions'}
+                {domain.regions.length} {domain.regions.length === 1 ? 'region' : 'regions'}
               </span>
             )}
             {currentLocale && (
               <span className={styles.statChipCountry}>
-                {activeCountryMeta?.flag} Viewing as <strong>/{currentLocale}</strong>
+                Viewing /{currentLocale}
               </span>
             )}
           </div>
         </header>
 
-        {/* Posts */}
         <main className={styles.postsContainer}>
           {posts.length === 0 ? (
             <div className={styles.noPosts}>
-              <div className={styles.noPostsIcon}>✦</div>
+              <div className={styles.noPostsIcon}>+</div>
               <p className={styles.noPostsText}>No posts yet</p>
               <p className={styles.noPostsHint}>Publish something from the Blog Manager to see it here.</p>
             </div>
           ) : (
-            posts.map((post, i) => {
-              // Find if this post belongs to a specific region
-              const postRegion = domain.regions.find(r => r.id === post.region_id);
-              // Use the post's region slug if it has one, otherwise fallback to the current filter locale or default
-              const postLocale = postRegion?.slug || (currentLocale ?? 'default');
-              const postHref = `/preview/${domain.id}/${post.id}`;
-              
-              return (
-                <article
-                  key={post.id}
-                  className={styles.postCard}
-                  style={{ animationDelay: `${i * 0.06}s` }}
-                >
-                  <time className={styles.postDate}>
-                    {new Date(post.created_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </time>
-                  <h2 className={styles.postTitle}>
-                    <Link
-                      href={postHref}
-                      locale={postLocale}
-                      className={styles.postTitleLink}
-                    >
-                      {post.title}
-                    </Link>
-                  </h2>
-                  <div className={styles.postExcerpt}>
-                    <ReactMarkdown>{post.content.slice(0, 200) + (post.content.length > 200 ? '…' : '')}</ReactMarkdown>
-                  </div>
+            posts.map((post, index) => (
+              <article
+                key={post.id}
+                className={styles.postCard}
+                style={{ animationDelay: `${index * 0.06}s` }}
+              >
+                <time className={styles.postDate}>
+                  {new Date(post.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </time>
+                <h2 className={styles.postTitle}>
                   <Link
-                    href={postHref}
-                    locale={postLocale}
-                    className={styles.readMore}
+                    href={buildPostHref(post.id)}
+                    locale={currentLocale ?? 'default'}
+                    className={styles.postTitleLink}
                   >
-                    Read article →
+                    {post.title}
                   </Link>
-                </article>
-              );
-            })
+                </h2>
+                <div className={styles.postExcerpt}>
+                  <ReactMarkdown>{post.content.slice(0, 200) + (post.content.length > 200 ? '...' : '')}</ReactMarkdown>
+                </div>
+                <Link
+                  href={buildPostHref(post.id)}
+                  locale={currentLocale ?? 'default'}
+                  className={styles.readMore}
+                >
+                  Read article
+                </Link>
+              </article>
+            ))
           )}
         </main>
-
       </div>
     </div>
   );
 }
-

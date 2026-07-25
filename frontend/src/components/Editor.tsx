@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Domain, createPost } from '../services/api';
 import styles from './Editor.module.css';
 
@@ -31,6 +32,7 @@ export default function Editor({ activeDomain }: EditorProps) {
   const [isRegionOpen, setIsRegionOpen] = useState(false);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'write' | 'split' | 'preview'>('write');
 
   const selectedRegion = regionId
     ? activeDomain.regions.find(r => r.id === regionId)
@@ -68,10 +70,63 @@ export default function Editor({ activeDomain }: EditorProps) {
     }
   };
 
+  const handleDownloadMd = () => {
+    if (!title && !content) return;
+    const fileName =
+      (title
+        ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+        : 'post') + '.md';
+    const mdContent = `# ${title || 'Untitled Post'}\n\n${content}`;
+    const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const publishLabel =
     status === 'saving' ? 'Publishing…' :
     status === 'saved'  ? '✓ Published' :
     'Publish';
+
+  const renderPreviewContent = () => (
+    <div className={styles.previewCard}>
+      <div className={styles.previewMeta}>
+        <span className={styles.previewDate}>
+          {new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
+        </span>
+        {selectedRegion && (
+          <span className={styles.previewCountryChip}>
+            {getCountryMeta(selectedRegion.slug).flag} {getCountryMeta(selectedRegion.slug).label}
+          </span>
+        )}
+        <span className={styles.previewDomainChip}>
+          {buildPublishUrl(selectedRegion?.slug)}
+        </span>
+      </div>
+      <h1 className={styles.previewTitle}>
+        {title.trim() ? title : <span className={styles.placeholderTitle}>Untitled Post</span>}
+      </h1>
+      <div className={styles.previewDivider} />
+      <div className={styles.renderedMarkdown}>
+        {content.trim() ? (
+          <ReactMarkdown>{content}</ReactMarkdown>
+        ) : (
+          <p className={styles.placeholderText}>
+            No content written yet. Type in the markdown editor to see your live preview here.
+          </p>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className={styles.editorContainer}>
@@ -111,7 +166,43 @@ export default function Editor({ activeDomain }: EditorProps) {
           )}
         </div>
 
+        {/* ── View Mode Switcher (Write | Split | Preview) ── */}
+        <div className={styles.segmentedControl}>
+          <button
+            type="button"
+            className={`${styles.segmentBtn} ${viewMode === 'write' ? styles.activeSegment : ''}`}
+            onClick={() => setViewMode('write')}
+          >
+            <span className={styles.segmentIcon}>✎</span> Write
+          </button>
+          <button
+            type="button"
+            className={`${styles.segmentBtn} ${viewMode === 'split' ? styles.activeSegment : ''}`}
+            onClick={() => setViewMode('split')}
+          >
+            <span className={styles.segmentIcon}>◫</span> Split
+          </button>
+          <button
+            type="button"
+            className={`${styles.segmentBtn} ${viewMode === 'preview' ? styles.activeSegment : ''}`}
+            onClick={() => setViewMode('preview')}
+          >
+            <span className={styles.segmentIcon}>👁</span> Preview
+          </button>
+        </div>
+
         <div className={styles.actions}>
+
+          {/* ── Export .md button ── */}
+          <button
+            type="button"
+            className={styles.exportBtn}
+            onClick={handleDownloadMd}
+            disabled={!title && !content}
+            title="Download post as .md file"
+          >
+            ↓ Export .md
+          </button>
 
           {/* ── Country / Audience Dropdown ── */}
           <div className={styles.customSelectWrapper}>
@@ -187,27 +278,69 @@ export default function Editor({ activeDomain }: EditorProps) {
         </div>
       </header>
 
-      {/* ── Writing Surface ── */}
-      <div className={styles.writingSurface}>
-        <input
-          id="post-title"
-          type="text"
-          className={styles.titleInput}
-          placeholder="Post title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          autoComplete="off"
-        />
-        <div className={styles.divider} />
-        <textarea
-          id="post-content"
-          className={styles.markdownArea}
-          placeholder="Start writing… (markdown supported)"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-        />
-      </div>
+      {/* ── Surface depending on View Mode ── */}
+      {viewMode === 'write' && (
+        <div className={styles.writingSurface}>
+          <input
+            id="post-title"
+            type="text"
+            className={styles.titleInput}
+            placeholder="Post title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            autoComplete="off"
+          />
+          <div className={styles.divider} />
+          <textarea
+            id="post-content"
+            className={styles.markdownArea}
+            placeholder="Start writing… (markdown supported)"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+          />
+        </div>
+      )}
+
+      {viewMode === 'split' && (
+        <div className={styles.splitSurface}>
+          <div className={styles.splitColumnLeft}>
+            <div className={styles.columnHeader}>
+              <span>MARKDOWN EDITOR</span>
+            </div>
+            <input
+              id="post-title-split"
+              type="text"
+              className={styles.titleInput}
+              placeholder="Post title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              autoComplete="off"
+            />
+            <div className={styles.divider} />
+            <textarea
+              id="post-content-split"
+              className={styles.markdownArea}
+              placeholder="Start writing… (markdown supported)"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+            />
+          </div>
+          <div className={styles.splitColumnRight}>
+            <div className={styles.columnHeader}>
+              <span>LIVE PUBLISH PREVIEW</span>
+            </div>
+            {renderPreviewContent()}
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'preview' && (
+        <div className={styles.previewSurface}>
+          {renderPreviewContent()}
+        </div>
+      )}
 
     </div>
   );
 }
+

@@ -1,12 +1,51 @@
 import express from 'express';
 import cors from 'cors';
 import apiRoutes from './routes/api';
+import pool, { ensureDomainSchema } from './database';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+function normalizeOrigin(origin: string) {
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return origin.replace(/\/$/, '');
+  }
+}
+
+async function isAllowedOrigin(origin?: string) {
+  if (!origin) return true;
+
+  const normalizedOrigin = normalizeOrigin(origin);
+  const staticOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    process.env.FRONTEND_PRIMARY_ORIGIN,
+    process.env.FRONTEND_PRIMARY_HOST ? `https://${process.env.FRONTEND_PRIMARY_HOST}` : null,
+  ].filter(Boolean);
+
+  if (staticOrigins.includes(normalizedOrigin)) return true;
+
+  const host = new URL(normalizedOrigin).host.replace(/^www\./, '');
+  const result = await pool.query(
+    "SELECT id FROM domains WHERE LOWER(host) = LOWER($1) AND status = 'active' LIMIT 1",
+    [host]
+  );
+
+  return result.rows.length > 0;
+}
+
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: async (origin, callback) => {
+    try {
+      callback(null, await isAllowedOrigin(origin));
+    } catch (error) {
+      callback(error as Error);
+    }
+  },
+}));
 app.use(express.json());
 
 // Routes
@@ -17,7 +56,13 @@ app.get('/', (req, res) => {
   res.send('Multi-Domain Blog API is running');
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
+ensureDomainSchema()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server is running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error('Failed to prepare database schema', error);
+    process.exit(1);
+  });
