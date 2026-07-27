@@ -19,20 +19,14 @@ const REGISTRAR_HINTS: { name: string; shortcut: string; icon: string }[] = [
 const PIPELINE_STEPS = [
   {
     id: 'cms',
-    label: 'Add it to this CMS',
-    sub: 'Creates a tenant record so this system knows the domain.',
-    done: false,
-  },
-  {
-    id: 'hosting',
-    label: 'Connect to your host',
-    sub: 'Vercel is connected automatically when you save — or add manually if credentials are not set.',
+    label: 'Add & auto-connect',
+    sub: 'Saves domain in CMS and automatically registers it in Vercel.',
     done: false,
   },
   {
     id: 'dns',
     label: 'Point DNS records',
-    sub: 'At your registrar, add the A and CNAME records shown below.',
+    sub: 'At your domain registrar, add the A and CNAME records shown below.',
     done: false,
   },
   {
@@ -62,7 +56,7 @@ export default function NewDomainPage() {
       setCreatedDomain(domain);
       setDomainName('');
       setDomainHost('');
-      setActiveStep('hosting');
+      setActiveStep('dns');
     } catch (createError: any) {
       setError(createError.message || 'Failed to create domain.');
     } finally {
@@ -141,9 +135,9 @@ export default function NewDomainPage() {
           <div className={styles.hostingAlert}>
             <div className={styles.hostingAlertDot} />
             <div>
-              <p className={styles.hostingAlertTitle}>Vercel auto-connect</p>
+              <p className={styles.hostingAlertTitle}>Vercel Auto-Connect Active</p>
               <p className={styles.hostingAlertBody}>
-                When you save a domain, this CMS automatically registers it in your Vercel project via the API — both the apex and <code>www.</code> variant. If Vercel credentials are not configured, Step 2 will guide you to add it manually.
+                Saving a domain automatically registers both apex and <code>www.</code> hostnames in your Vercel project via the Vercel API. You only need to add DNS records at your registrar!
               </p>
             </div>
           </div>
@@ -152,14 +146,14 @@ export default function NewDomainPage() {
         {/* ── RIGHT: Step content ── */}
         <main className={styles.content}>
 
-          {/* STEP: Add to CMS */}
+          {/* STEP 1: Add & Auto-connect */}
           {activeStep === 'cms' && (
             <section className={styles.stepSection} key="cms">
               <header className={styles.stepHeader}>
-                <span className={styles.stepEyebrow}>Step 1 of 4</span>
-                <h1 className={styles.stepTitle}>Register domain in the CMS</h1>
+                <span className={styles.stepEyebrow}>Step 1 of 3</span>
+                <h1 className={styles.stepTitle}>Register domain &amp; auto-connect Vercel</h1>
                 <p className={styles.stepDesc}>
-                  This creates a tenant record. The CMS will then know how to route incoming traffic for this domain to the right content.
+                  Enter your domain below. The system saves the record in your database and automatically provisions the domain in your Vercel project via API.
                 </p>
               </header>
 
@@ -213,7 +207,7 @@ export default function NewDomainPage() {
                       </>
                     ) : (
                       <>
-                        Add domain to CMS
+                        Add domain &amp; connect Vercel
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                           <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
@@ -233,7 +227,7 @@ export default function NewDomainPage() {
                     </div>
                     <div>
                       <p className={styles.successTitle}>{createdDomain.name} added</p>
-                      <p className={styles.successSub}>Now connect it to your hosting platform, then set DNS.</p>
+                      <p className={styles.successSub}>Domain saved &amp; connected to Vercel. Next: point your DNS records.</p>
                     </div>
                     <span className={styles.statusPill}>{createdDomain.status}</span>
                   </div>
@@ -253,7 +247,7 @@ export default function NewDomainPage() {
                         <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.4"/>
                         <path d="M7 4v3.5M7 9.5h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                       </svg>
-                      Already registered in Vercel
+                      Already registered in Vercel project
                     </div>
                   )}
                   {createdDomain.vercel_status === 'credentials_missing' && (
@@ -262,7 +256,7 @@ export default function NewDomainPage() {
                         <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.4"/>
                         <path d="M7 4v3.5M7 9.5h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                       </svg>
-                      Vercel credentials not configured — you&apos;ll add the domain manually in Step 2
+                      Vercel credentials not configured on backend server — add domain manually in Vercel settings if needed
                     </div>
                   )}
                   {createdDomain.vercel_status === 'failed' && (
@@ -271,117 +265,29 @@ export default function NewDomainPage() {
                         <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.4"/>
                         <path d="M7 4v3.5M7 9.5h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                       </svg>
-                      Vercel auto-registration failed: {createdDomain.vercel_error ?? 'Unknown error'}
+                      Vercel auto-registration warning: {createdDomain.vercel_error ?? 'Unknown error'}
                     </div>
                   )}
 
-                  <button className={styles.nextButton} onClick={() => setActiveStep('hosting')}>
-                    Next: Connect hosting
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* STEP: Hosting */}
-          {activeStep === 'hosting' && (
-            <section className={styles.stepSection} key="hosting">
-              <header className={styles.stepHeader}>
-                <span className={styles.stepEyebrow}>Step 2 of 4</span>
-                <h1 className={styles.stepTitle}>
-                  {createdDomain && (createdDomain.vercel_status === 'added' || createdDomain.vercel_status === 'already_exists')
-                    ? 'Automatically connected to Vercel'
-                    : 'Connect to your hosting project'}
-                </h1>
-                <p className={styles.stepDesc}>
-                  {createdDomain && (createdDomain.vercel_status === 'added' || createdDomain.vercel_status === 'already_exists')
-                    ? 'You no longer need to manually log into Vercel! Your domain has been registered with Vercel automatically via API.'
-                    : 'DNS records send traffic to Vercel — but Vercel also needs to know which project to serve for this domain.'}
-                </p>
-              </header>
-
-              {/* Auto-connected banner when Vercel credentials were configured */}
-              {createdDomain && (createdDomain.vercel_status === 'added' || createdDomain.vercel_status === 'already_exists') ? (
-                <div className={styles.vercelAutoCard}>
-                  <div className={styles.vercelAutoIcon}>
-                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                      <circle cx="11" cy="11" r="10" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1.5"/>
-                      <path d="M6 11l3.5 3.5L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <p className={styles.vercelAutoTitle}>No manual Vercel login required!</p>
-                    <p className={styles.vercelAutoBody}>
-                      Both <code className={styles.inlineCode}>{createdDomain.host}</code> and{' '}
-                      <code className={styles.inlineCode}>www.{createdDomain.host}</code> were automatically added to your Vercel project in the background. You can proceed directly to DNS setup.
-                    </p>
-                  </div>
                   <button className={styles.nextButton} onClick={() => setActiveStep('dns')}>
-                    Proceed to DNS setup
+                    Next: Point DNS records
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </button>
                 </div>
-              ) : (
-                <>
-                  <div className={styles.hostingExplainerGrid}>
-                    <div className={styles.explainerCard}>
-                      <span className={styles.explainerIcon}>🌐</span>
-                      <h3 className={styles.explainerTitle}>DNS alone isn&apos;t enough</h3>
-                      <p className={styles.explainerBody}>
-                        When someone visits your domain, the DNS A record routes them to Vercel&apos;s servers. But Vercel serves thousands of sites — it won&apos;t know yours is there unless you register the domain in your project.
-                      </p>
-                    </div>
-                    <div className={styles.explainerCard}>
-                      <span className={styles.explainerIcon}>🔒</span>
-                      <h3 className={styles.explainerTitle}>SSL is issued per-project</h3>
-                      <p className={styles.explainerBody}>
-                        HTTPS certificates are provisioned automatically once the domain is attached in Vercel. Without this step, your visitors will see a security error.
-                      </p>
-                    </div>
-                    <div className={styles.explainerCard}>
-                      <span className={styles.explainerIcon}>🚫</span>
-                      <h3 className={styles.explainerTitle}>Can&apos;t use another host</h3>
-                      <p className={styles.explainerBody}>
-                        If you point the domain at a different hosting platform (cPanel, Wix, WordPress hosting), it won&apos;t serve this CMS. The domain must live in <em>this</em> project&apos;s host.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className={styles.card}>
-                    <h2 className={styles.cardTitle}>How to add in Vercel</h2>
-                    <ol className={styles.instructionList}>
-                      <li>Open <a href="https://vercel.com" target="_blank" rel="noreferrer" className={styles.inlineLink}>vercel.com</a> and go to your project.</li>
-                      <li>Click <strong>Settings</strong> in the top nav.</li>
-                      <li>Select <strong>Domains</strong> from the left sidebar.</li>
-                      <li>Type your domain (e.g. <code className={styles.inlineCode}>{createdDomain?.host ?? 'shivit.in'}</code>) and click <strong>Add</strong>.</li>
-                      <li>Do the same for the <code className={styles.inlineCode}>www.</code> version.</li>
-                      <li>Vercel will show you DNS records to add — those match exactly what&apos;s in the next step.</li>
-                    </ol>
-                    <button className={styles.nextButton} onClick={() => setActiveStep('dns')}>
-                      Next: Set DNS records
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
-                  </div>
-                </>
               )}
             </section>
           )}
 
-          {/* STEP: DNS */}
+          {/* STEP 2: DNS */}
           {activeStep === 'dns' && (
             <section className={styles.stepSection} key="dns">
               <header className={styles.stepHeader}>
-                <span className={styles.stepEyebrow}>Step 3 of 4</span>
-                <h1 className={styles.stepTitle}>Add DNS records at your registrar</h1>
+                <span className={styles.stepEyebrow}>Step 2 of 3</span>
+                <h1 className={styles.stepTitle}>Add DNS records at your domain registrar</h1>
                 <p className={styles.stepDesc}>
-                  Log in to the website where you bought the domain and add these two records. This points your domain to the hosting server.
+                  Log in to the site where you registered your domain (GoDaddy, Namecheap, Cloudflare) and add these two records. This routes your domain to Vercel.
                 </p>
               </header>
 
@@ -440,10 +346,10 @@ export default function NewDomainPage() {
                 <div className={styles.card}>
                   <h2 className={styles.cardTitle}>What to avoid</h2>
                   <ul className={styles.avoidList}>
-                    <li>Don&apos;t put <code className={styles.inlineCode}>https://</code> in the DNS value field — just the bare hostname or IP.</li>
-                    <li>Don&apos;t add URL paths like <code className={styles.inlineCode}>/blog</code> — DNS only works with hostnames.</li>
-                    <li>Remove any existing <strong>A</strong> or <strong>CNAME</strong> records for <code className={styles.inlineCode}>@</code> and <code className={styles.inlineCode}>www</code> that point elsewhere.</li>
-                    <li>DNS can take minutes to hours — be patient before declaring it broken.</li>
+                    <li>Don&apos;t put <code className={styles.inlineCode}>https://</code> in the DNS value field — just the bare IP or target hostname.</li>
+                    <li>Don&apos;t add URL paths like <code className={styles.inlineCode}>/blog</code> — DNS records only work with domain names.</li>
+                    <li>Remove any pre-existing <strong>A</strong> or <strong>CNAME</strong> records for <code className={styles.inlineCode}>@</code> and <code className={styles.inlineCode}>www</code> that point elsewhere.</li>
+                    <li>DNS propagation usually takes 5-15 minutes (up to 48h in rare cases).</li>
                   </ul>
                 </div>
               </div>
@@ -459,14 +365,14 @@ export default function NewDomainPage() {
             </section>
           )}
 
-          {/* STEP: Verify */}
+          {/* STEP 3: Verify */}
           {activeStep === 'verify' && (
             <section className={styles.stepSection} key="verify">
               <header className={styles.stepHeader}>
-                <span className={styles.stepEyebrow}>Step 4 of 4</span>
+                <span className={styles.stepEyebrow}>Step 3 of 3</span>
                 <h1 className={styles.stepTitle}>Wait for propagation, then verify</h1>
                 <p className={styles.stepDesc}>
-                  DNS changes travel across servers worldwide. This usually takes a few minutes but can be up to 48 hours in rare cases.
+                  DNS changes travel across global servers. Check DNS propagation below and activate your domain when ready.
                 </p>
               </header>
 
@@ -476,25 +382,25 @@ export default function NewDomainPage() {
                   <div className={styles.verifyContent}>
                     <h3 className={styles.verifyTitle}>Check propagation</h3>
                     <p className={styles.verifyBody}>
-                      Use <a href="https://dnschecker.org" target="_blank" rel="noreferrer" className={styles.inlineLink}>dnschecker.org</a> to confirm your A record is pointing to <code className={styles.inlineCode}>76.76.21.21</code> across the globe.
+                      Use <a href="https://dnschecker.org" target="_blank" rel="noreferrer" className={styles.inlineLink}>dnschecker.org</a> to confirm your A record points to <code className={styles.inlineCode}>76.76.21.21</code> across the globe.
                     </p>
                   </div>
                 </div>
                 <div className={styles.verifyStep}>
                   <div className={styles.verifyBubble}>2</div>
                   <div className={styles.verifyContent}>
-                    <h3 className={styles.verifyTitle}>Come back and click Verify</h3>
+                    <h3 className={styles.verifyTitle}>Click Verify in Dashboard</h3>
                     <p className={styles.verifyBody}>
-                      Open the dashboard, find the new domain in the sidebar, and click the <strong>Verify</strong> button. The status will change to <em>Active</em> once the check passes.
+                      Open the dashboard, find the new domain in the sidebar, and click the <strong>Verify</strong> button. The status will change to <em>Active</em> once verified.
                     </p>
                   </div>
                 </div>
                 <div className={styles.verifyStep}>
                   <div className={styles.verifyBubble}>3</div>
                   <div className={styles.verifyContent}>
-                    <h3 className={styles.verifyTitle}>Publish a test post</h3>
+                    <h3 className={styles.verifyTitle}>Publish &amp; test</h3>
                     <p className={styles.verifyBody}>
-                      Once active, create and publish a post assigned to this domain. Open the domain in your browser and confirm the content loads correctly.
+                      Once active, publish a post assigned to this domain and visit it in your browser to verify it loads seamlessly.
                     </p>
                   </div>
                 </div>
