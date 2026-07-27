@@ -812,3 +812,93 @@
   .dnsPurpose { grid-column: 1 / -1; }
   .copyButton { grid-column: 1 / -1; }
 }
+
+/* ── Vercel status badge (Step 1) ──────────────────────────────────────────── */
+.vercelBadge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 12px;
+  line-height: 1.4;
+}
+
+.vercelBadge code {
+  font-size: 12px;
+  font-family: 'Fira Mono', 'Courier New', monospace;
+  background: rgba(0,0,0,0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.vercelBadge[data-variant="success"] {
+  background: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+
+.vercelBadge[data-variant="warning"] {
+  background: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FCD34D;
+}
+
+.vercelBadge[data-variant="neutral"] {
+  background: #F0F0FF;
+  color: #4B4B80;
+  border: 1px solid #C7C7E8;
+}
+
+.vercelBadge[data-variant="error"] {
+  background: #FEF2F2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+}
+
+/* ── Vercel auto-connected card (Step 2) ───────────────────────────────────── */
+.vercelAutoCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #ECFDF5;
+  border: 1px solid #6EE7B7;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.vercelAutoIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #D1FAE5;
+  color: #065F46;
+  flex-shrink: 0;
+}
+
+.vercelAutoTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #065F46;
+  margin: 0 0 4px;
+}
+
+.vercelAutoBody {
+  font-size: 13px;
+  color: #047857;
+  margin: 0;
+  line-height: 1.6;
+}
+
+@media (min-width: 600px) {
+  .vercelAutoCard {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}

@@ -26,7 +26,7 @@ const PIPELINE_STEPS = [
   {
     id: 'hosting',
     label: 'Connect to your host',
-    sub: 'Add the domain in Vercel (or wherever this project is deployed).',
+    sub: 'Vercel is connected automatically when you save — or add manually if credentials are not set.',
     done: false,
   },
   {
@@ -141,9 +141,9 @@ export default function NewDomainPage() {
           <div className={styles.hostingAlert}>
             <div className={styles.hostingAlertDot} />
             <div>
-              <p className={styles.hostingAlertTitle}>New domain?</p>
+              <p className={styles.hostingAlertTitle}>Vercel auto-connect</p>
               <p className={styles.hostingAlertBody}>
-                DNS alone isn&apos;t enough. You must also add this domain inside your hosting project (Vercel → Settings → Domains) so it knows which site to serve.
+                When you save a domain, this CMS automatically registers it in your Vercel project via the API — both the apex and <code>www.</code> variant. If Vercel credentials are not configured, Step 2 will guide you to add it manually.
               </p>
             </div>
           </div>
@@ -237,6 +237,44 @@ export default function NewDomainPage() {
                     </div>
                     <span className={styles.statusPill}>{createdDomain.status}</span>
                   </div>
+
+                  {/* Vercel registration status badge */}
+                  {createdDomain.vercel_status === 'added' && (
+                    <div className={styles.vercelBadge} data-variant="success">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M2 7l3.5 3.5L12 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Automatically added to Vercel — both <code>{createdDomain.host}</code> and <code>www.{createdDomain.host}</code>
+                    </div>
+                  )}
+                  {createdDomain.vercel_status === 'already_exists' && (
+                    <div className={styles.vercelBadge} data-variant="warning">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.4"/>
+                        <path d="M7 4v3.5M7 9.5h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                      </svg>
+                      Already registered in Vercel
+                    </div>
+                  )}
+                  {createdDomain.vercel_status === 'credentials_missing' && (
+                    <div className={styles.vercelBadge} data-variant="neutral">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.4"/>
+                        <path d="M7 4v3.5M7 9.5h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                      </svg>
+                      Vercel credentials not configured — you&apos;ll add the domain manually in Step 2
+                    </div>
+                  )}
+                  {createdDomain.vercel_status === 'failed' && (
+                    <div className={styles.vercelBadge} data-variant="error">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.4"/>
+                        <path d="M7 4v3.5M7 9.5h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                      </svg>
+                      Vercel auto-registration failed: {createdDomain.vercel_error ?? 'Unknown error'}
+                    </div>
+                  )}
+
                   <button className={styles.nextButton} onClick={() => setActiveStep('hosting')}>
                     Next: Connect hosting
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -259,47 +297,74 @@ export default function NewDomainPage() {
                 </p>
               </header>
 
-              <div className={styles.hostingExplainerGrid}>
-                <div className={styles.explainerCard}>
-                  <span className={styles.explainerIcon}>🌐</span>
-                  <h3 className={styles.explainerTitle}>DNS alone isn&apos;t enough</h3>
-                  <p className={styles.explainerBody}>
-                    When someone visits your domain, the DNS A record routes them to Vercel&apos;s servers. But Vercel serves thousands of sites — it won&apos;t know yours is there unless you register the domain in your project.
-                  </p>
+              {/* Auto-connected banner when Vercel credentials were configured */}
+              {createdDomain && (createdDomain.vercel_status === 'added' || createdDomain.vercel_status === 'already_exists') ? (
+                <div className={styles.vercelAutoCard}>
+                  <div className={styles.vercelAutoIcon}>
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                      <circle cx="11" cy="11" r="10" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1.5"/>
+                      <path d="M6 11l3.5 3.5L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p className={styles.vercelAutoTitle}>Automatically connected to Vercel</p>
+                    <p className={styles.vercelAutoBody}>
+                      Both <code className={styles.inlineCode}>{createdDomain.host}</code> and{' '}
+                      <code className={styles.inlineCode}>www.{createdDomain.host}</code> were added to your Vercel project. SSL certificates will be provisioned automatically once DNS propagates.
+                    </p>
+                  </div>
+                  <button className={styles.nextButton} onClick={() => setActiveStep('dns')}>
+                    Skip to DNS setup
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
                 </div>
-                <div className={styles.explainerCard}>
-                  <span className={styles.explainerIcon}>🔒</span>
-                  <h3 className={styles.explainerTitle}>SSL is issued per-project</h3>
-                  <p className={styles.explainerBody}>
-                    HTTPS certificates are provisioned automatically once the domain is attached in Vercel. Without this step, your visitors will see a security error.
-                  </p>
-                </div>
-                <div className={styles.explainerCard}>
-                  <span className={styles.explainerIcon}>🚫</span>
-                  <h3 className={styles.explainerTitle}>Can&apos;t use another host</h3>
-                  <p className={styles.explainerBody}>
-                    If you point the domain at a different hosting platform (cPanel, Wix, WordPress hosting), it won&apos;t serve this CMS. The domain must live in <em>this</em> project&apos;s host.
-                  </p>
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className={styles.hostingExplainerGrid}>
+                    <div className={styles.explainerCard}>
+                      <span className={styles.explainerIcon}>🌐</span>
+                      <h3 className={styles.explainerTitle}>DNS alone isn&apos;t enough</h3>
+                      <p className={styles.explainerBody}>
+                        When someone visits your domain, the DNS A record routes them to Vercel&apos;s servers. But Vercel serves thousands of sites — it won&apos;t know yours is there unless you register the domain in your project.
+                      </p>
+                    </div>
+                    <div className={styles.explainerCard}>
+                      <span className={styles.explainerIcon}>🔒</span>
+                      <h3 className={styles.explainerTitle}>SSL is issued per-project</h3>
+                      <p className={styles.explainerBody}>
+                        HTTPS certificates are provisioned automatically once the domain is attached in Vercel. Without this step, your visitors will see a security error.
+                      </p>
+                    </div>
+                    <div className={styles.explainerCard}>
+                      <span className={styles.explainerIcon}>🚫</span>
+                      <h3 className={styles.explainerTitle}>Can&apos;t use another host</h3>
+                      <p className={styles.explainerBody}>
+                        If you point the domain at a different hosting platform (cPanel, Wix, WordPress hosting), it won&apos;t serve this CMS. The domain must live in <em>this</em> project&apos;s host.
+                      </p>
+                    </div>
+                  </div>
 
-              <div className={styles.card}>
-                <h2 className={styles.cardTitle}>How to add in Vercel</h2>
-                <ol className={styles.instructionList}>
-                  <li>Open <a href="https://vercel.com" target="_blank" rel="noreferrer" className={styles.inlineLink}>vercel.com</a> and go to your project.</li>
-                  <li>Click <strong>Settings</strong> in the top nav.</li>
-                  <li>Select <strong>Domains</strong> from the left sidebar.</li>
-                  <li>Type your domain (e.g. <code className={styles.inlineCode}>shivit.in</code>) and click <strong>Add</strong>.</li>
-                  <li>Do the same for the <code className={styles.inlineCode}>www.</code> version.</li>
-                  <li>Vercel will show you DNS records to add — those match exactly what&apos;s in the next step.</li>
-                </ol>
-                <button className={styles.nextButton} onClick={() => setActiveStep('dns')}>
-                  Next: Set DNS records
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </div>
+                  <div className={styles.card}>
+                    <h2 className={styles.cardTitle}>How to add in Vercel</h2>
+                    <ol className={styles.instructionList}>
+                      <li>Open <a href="https://vercel.com" target="_blank" rel="noreferrer" className={styles.inlineLink}>vercel.com</a> and go to your project.</li>
+                      <li>Click <strong>Settings</strong> in the top nav.</li>
+                      <li>Select <strong>Domains</strong> from the left sidebar.</li>
+                      <li>Type your domain (e.g. <code className={styles.inlineCode}>{createdDomain?.host ?? 'shivit.in'}</code>) and click <strong>Add</strong>.</li>
+                      <li>Do the same for the <code className={styles.inlineCode}>www.</code> version.</li>
+                      <li>Vercel will show you DNS records to add — those match exactly what&apos;s in the next step.</li>
+                    </ol>
+                    <button className={styles.nextButton} onClick={() => setActiveStep('dns')}>
+                      Next: Set DNS records
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                </>
+              )}
             </section>
           )}
 

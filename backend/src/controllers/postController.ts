@@ -2,6 +2,14 @@ import { Request, Response } from 'express';
 import pool, { Post, Domain, Region } from '../database';
 import dns from 'dns/promises';
 
+// ── Vercel integration types ───────────────────────────────────────────────────
+type VercelRegStatus = 'added' | 'already_exists' | 'credentials_missing' | 'failed';
+
+interface VercelRegResult {
+  status: VercelRegStatus;
+  error?: string;
+}
+
 const DEFAULT_REGIONS = [
   { name: 'United States', slug: 'us' },
   { name: 'India', slug: 'in' },
@@ -42,31 +50,87 @@ function getDnsRecords(host: string) {
   ];
 }
 
-async function registerDomainWithVercel(host: string): Promise<string | null> {
+async function registerDomainWithVercel(host: string): Promise<VercelRegResult> {
   const token = process.env.VERCEL_API_TOKEN;
   const projectId = process.env.VERCEL_PROJECT_ID;
   const teamId = process.env.VERCEL_TEAM_ID;
 
-  if (!token || !projectId) return null;
-
-  const url = new URL(`https://api.vercel.com/v10/projects/${projectId}/domains`);
-  if (teamId) url.searchParams.set('teamId', teamId);
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ name: host }),
-  });
-
-  if (!response.ok && response.status !== 409) {
-    const message = await response.text();
-    throw new Error(`Vercel domain registration failed: ${message}`);
+  if (!token || !projectId) {
+    console.warn('[Vercel] VERCEL_API_TOKEN or VERCEL_PROJECT_ID is not set. Skipping auto-registration.');
+    return { status: 'credentials_missing' };
   }
 
-  return host;
+  const domainsToRegister = [host, `www.${host}`];
+  let lastStatus: VercelRegStatus = 'added';
+
+  for (const domain of domainsToRegister) {
+    const url = new URL(`https://api.vercel.com/v10/projects/${projectId}/domains`);
+    if (teamId) url.searchParams.set('teamId', teamId);
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: domain }),
+      });
+
+      if (response.status === 409) {
+        lastStatus = 'already_exists';
+        console.log(`[Vercel] Domain already registered: ${domain}`);
+        continue;
+      }
+
+      if (!response.ok) {
+        const message = await response.text();
+        console.error(`[Vercel] Failed to register ${domain}: ${message}`);
+        return { status: 'failed', error: `Vercel rejected domain ${domain}: ${message}` };
+      }
+
+      console.log(`[Vercel] Successfully registered: ${domain}`);
+    } catch (err: any) {
+      console.error(`[Vercel] Network error registering ${domain}:`, err);
+      return { status: 'failed', error: err.message };
+    }
+  }
+
+  return { status: lastStatus };
+}
+
+async function unregisterDomainFromVercel(host: string): Promise<void> {
+  const token = process.env.VERCEL_API_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  const teamId = process.env.VERCEL_TEAM_ID;
+
+  if (!token || !projectId) {
+    console.warn('[Vercel] Credentials missing — skipping Vercel domain removal.');
+    return;
+  }
+
+  const domainsToRemove = [host, `www.${host}`];
+
+  for (const domain of domainsToRemove) {
+    const url = new URL(`https://api.vercel.com/v9/projects/${projectId}/domains/${domain}`);
+    if (teamId) url.searchParams.set('teamId', teamId);
+
+    try {
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok || response.status === 404) {
+        console.log(`[Vercel] Removed domain: ${domain}`);
+      } else {
+        const message = await response.text();
+        console.error(`[Vercel] Failed to remove ${domain}: ${message}`);
+      }
+    } catch (err: any) {
+      console.error(`[Vercel] Network error removing ${domain}:`, err);
+    }
+  }
 }
 
 async function checkDns(host: string): Promise<boolean> {
@@ -144,7 +208,11 @@ export const createDomain = async (req: Request<{}, {}, CreateDomainRequest>, re
 
     await client.query('BEGIN');
 
-    const providerDomainId = await registerDomainWithVercel(normalizedHost);
+    // Register with Vercel — never throws, always returns a status object
+    const vercelResult = normalizedHost.includes('localhost')
+      ? { status: 'added' as VercelRegStatus }
+      : await registerDomainWithVercel(normalizedHost);
+
     const initialStatus = normalizedHost.includes('localhost') ? 'active' : 'pending_dns';
 
     const domainResult = await client.query<Domain>(
@@ -156,7 +224,7 @@ export const createDomain = async (req: Request<{}, {}, CreateDomainRequest>, re
         buildPublicUrl(normalizedHost),
         normalizedHost,
         initialStatus,
-        providerDomainId,
+        vercelResult.status === 'added' || vercelResult.status === 'already_exists' ? normalizedHost : null,
         initialStatus === 'active' ? new Date() : null,
         initialStatus === 'active' ? new Date() : null,
       ]
@@ -177,7 +245,13 @@ export const createDomain = async (req: Request<{}, {}, CreateDomainRequest>, re
     await client.query('COMMIT');
 
     const domains = await getDomainsWithRegions();
-    res.status(201).json(domains.find(item => item.id === domain.id));
+    const created = domains.find(item => item.id === domain.id);
+
+    res.status(201).json({
+      ...created,
+      vercel_status: vercelResult.status,
+      vercel_error: vercelResult.error ?? null,
+    });
   } catch (error: any) {
     await client.query('ROLLBACK');
 
@@ -222,11 +296,21 @@ export const updateDomain = async (req: Request<{ id: string }, {}, UpdateDomain
 export const deleteDomain = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM domains WHERE id = $1 RETURNING id', [id]);
 
-    if (!result.rows.length) {
+    // Fetch host before deleting so we can remove it from Vercel
+    const domainResult = await pool.query<Domain>('SELECT * FROM domains WHERE id = $1', [id]);
+    if (!domainResult.rows.length) {
       return res.status(404).json({ error: 'Domain not found.' });
     }
+
+    const { host } = domainResult.rows[0];
+
+    await pool.query('DELETE FROM domains WHERE id = $1', [id]);
+
+    // Fire-and-forget Vercel cleanup (don't block response on this)
+    unregisterDomainFromVercel(host).catch(err =>
+      console.error('[Vercel] Cleanup failed silently:', err)
+    );
 
     res.status(204).send();
   } catch (error) {
@@ -263,6 +347,31 @@ export const resolveDomainByHost = async (req: Request, res: Response) => {
   }
 };
 
+async function verifyDomainWithVercel(host: string): Promise<boolean> {
+  const token = process.env.VERCEL_API_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  const teamId = process.env.VERCEL_TEAM_ID;
+
+  if (!token || !projectId) return false;
+
+  const url = new URL(`https://api.vercel.com/v9/projects/${projectId}/domains/${host}/verify`);
+  if (teamId) url.searchParams.set('teamId', teamId);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await response.json() as any;
+    const verified = data?.verified === true;
+    console.log(`[Vercel] Verify ${host}: verified=${verified}`);
+    return verified;
+  } catch (err) {
+    console.error('[Vercel] Verification API error:', err);
+    return false;
+  }
+}
+
 export const verifyDomain = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -275,9 +384,15 @@ export const verifyDomain = async (req: Request, res: Response) => {
     const domain = domainResult.rows[0];
     await pool.query('UPDATE domains SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', ['verifying', id]);
 
-    const dnsOk = await checkDns(domain.host);
-    const nextStatus = dnsOk ? 'active' : 'pending_dns';
-    const now = dnsOk ? new Date() : null;
+    // Run DNS check and Vercel API verify in parallel
+    const [dnsOk, vercelVerified] = await Promise.all([
+      checkDns(domain.host),
+      verifyDomainWithVercel(domain.host),
+    ]);
+
+    const isVerified = dnsOk || vercelVerified;
+    const nextStatus = isVerified ? 'active' : 'pending_dns';
+    const now = isVerified ? new Date() : null;
 
     await pool.query(
       `UPDATE domains

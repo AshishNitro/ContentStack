@@ -16,6 +16,8 @@ export interface Domain {
   dns_verified_at: string | null;
   ssl_ready_at: string | null;
   provider_domain_id: string | null;
+  vercel_status?: 'added' | 'already_exists' | 'credentials_missing' | 'failed';
+  vercel_error?: string | null;
   dnsRecords?: DnsRecord[];
   regions: Region[];
 }
