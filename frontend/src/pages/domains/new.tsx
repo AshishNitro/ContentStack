@@ -291,9 +291,15 @@ export default function NewDomainPage() {
             <section className={styles.stepSection} key="hosting">
               <header className={styles.stepHeader}>
                 <span className={styles.stepEyebrow}>Step 2 of 4</span>
-                <h1 className={styles.stepTitle}>Add the domain to your hosting project</h1>
+                <h1 className={styles.stepTitle}>
+                  {createdDomain && (createdDomain.vercel_status === 'added' || createdDomain.vercel_status === 'already_exists')
+                    ? 'Automatically connected to Vercel'
+                    : 'Connect to your hosting project'}
+                </h1>
                 <p className={styles.stepDesc}>
-                  DNS records send traffic to the hosting provider&apos;s network — but the provider also needs to know which project &amp; site to serve on that domain.
+                  {createdDomain && (createdDomain.vercel_status === 'added' || createdDomain.vercel_status === 'already_exists')
+                    ? 'You no longer need to manually log into Vercel! Your domain has been registered with Vercel automatically via API.'
+                    : 'DNS records send traffic to Vercel — but Vercel also needs to know which project to serve for this domain.'}
                 </p>
               </header>
 
@@ -307,14 +313,14 @@ export default function NewDomainPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className={styles.vercelAutoTitle}>Automatically connected to Vercel</p>
+                    <p className={styles.vercelAutoTitle}>No manual Vercel login required!</p>
                     <p className={styles.vercelAutoBody}>
                       Both <code className={styles.inlineCode}>{createdDomain.host}</code> and{' '}
-                      <code className={styles.inlineCode}>www.{createdDomain.host}</code> were added to your Vercel project. SSL certificates will be provisioned automatically once DNS propagates.
+                      <code className={styles.inlineCode}>www.{createdDomain.host}</code> were automatically added to your Vercel project in the background. You can proceed directly to DNS setup.
                     </p>
                   </div>
                   <button className={styles.nextButton} onClick={() => setActiveStep('dns')}>
-                    Skip to DNS setup
+                    Proceed to DNS setup
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
