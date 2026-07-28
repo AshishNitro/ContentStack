@@ -449,7 +449,7 @@ export default function Editor({ activeDomain, onDomainUpdated }: EditorProps) {
                           <button
                             type="button"
                             className={styles.regionDeleteBtn}
-                            title={`Remove ${meta.label} region`}
+                            title={`Remove ${r.name} region`}
                             disabled={isDeleting}
                             onClick={(e) => handleDeleteRegion(r, e)}
                           >
