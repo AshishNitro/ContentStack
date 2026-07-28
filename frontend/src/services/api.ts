@@ -131,3 +131,34 @@ export async function createPost(payload: {
 
   return res.json();
 }
+
+export async function addRegion(
+  domainId: number,
+  payload: { name: string; slug: string }
+): Promise<Domain> {
+  const res = await fetch(`${API_BASE}/domains/${domainId}/regions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to add region');
+  }
+
+  return res.json();
+}
+
+export async function deleteRegion(domainId: number, regionId: number): Promise<Domain> {
+  const res = await fetch(`${API_BASE}/domains/${domainId}/regions/${regionId}`, {
+    method: 'DELETE',
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to delete region');
+  }
+
+  return res.json();
+}

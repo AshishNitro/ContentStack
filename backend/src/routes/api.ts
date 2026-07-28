@@ -6,11 +6,14 @@ import {
   deleteDomain,
   resolveDomainByHost,
   verifyDomain,
+  addRegion,
+  deleteRegion,
   getPosts,
   createPost,
   getPost,
   getPostBySlug,
 } from '../controllers/postController';
+
 
 const router = Router();
 
@@ -21,6 +24,9 @@ router.get('/domains/resolve', resolveDomainByHost);
 router.patch('/domains/:id', updateDomain);
 router.delete('/domains/:id', deleteDomain);
 router.post('/domains/:id/verify', verifyDomain);
+router.post('/domains/:id/regions', addRegion);
+router.delete('/domains/:id/regions/:regionId', deleteRegion);
+
 
 // Post routes
 router.get('/posts', getPosts);

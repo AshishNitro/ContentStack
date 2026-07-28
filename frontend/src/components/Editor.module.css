@@ -117,7 +117,7 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 300px;
+  width: 320px;
   background: #FFFFFF;
   border: 1px solid #E4E4EC;
   border-radius: 12px;
@@ -207,6 +207,279 @@
   background: #E4E4EC;
   margin: 4px 0;
 }
+
+/* ── Region option row with delete button ── */
+.regionOptionRow {
+  position: relative;
+}
+
+.regionOptionRow .regionDeleteBtn {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.regionOptionRow:hover .regionDeleteBtn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.regionDeleteBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: #ADADC0;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.regionDeleteBtn:hover:not(:disabled) {
+  background: #FFE8E8;
+  color: #E05252;
+}
+
+.regionDeleteBtn:disabled {
+  cursor: not-allowed;
+}
+
+.deletingOption {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.deletingSpinner {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+  font-size: 16px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── Add Region button ── */
+.addRegionBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #7B78F0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  text-align: left;
+  font-family: inherit;
+}
+
+.addRegionBtn:hover {
+  background: #F0F0FF;
+  color: #5B57D1;
+}
+
+.addRegionIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: #E8E7FF;
+  font-size: 14px;
+  font-weight: 700;
+  color: #7B78F0;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* ── Add Region inline form ── */
+.addRegionForm {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: formSlideIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes formSlideIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.addRegionFormHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.addRegionFormTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ADADC0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.addRegionFormClose {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: #ADADC0;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.addRegionFormClose:hover {
+  background: #F8F8FC;
+  color: #1A1A2E;
+}
+
+.addRegionInputRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.addRegionFlagPreview {
+  font-size: 24px;
+  line-height: 1;
+  margin-top: 6px;
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+}
+
+.addRegionFields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.addRegionInput {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #E4E4EC;
+  border-radius: 7px;
+  background: #F8F8FC;
+  color: #1A1A2E;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
+}
+
+.addRegionInput:focus {
+  border-color: #A5A3FF;
+  background: #FFFFFF;
+}
+
+.addRegionInput::placeholder {
+  color: #C8C8D8;
+}
+
+.addRegionSlugRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.addRegionSlugPrefix {
+  font-size: 13px;
+  font-weight: 700;
+  color: #A5A3FF;
+  font-family: 'Geist Mono', monospace;
+  flex-shrink: 0;
+}
+
+.addRegionSlugInput {
+  font-family: 'Geist Mono', monospace;
+  letter-spacing: 0.04em;
+  flex: 1;
+}
+
+.addRegionError {
+  font-size: 11px;
+  color: #E05252;
+  background: #FFF0F0;
+  border-radius: 6px;
+  padding: 5px 9px;
+  border: 1px solid #FFD0D0;
+}
+
+.addRegionActions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.addRegionSaveBtn {
+  flex: 1;
+  height: 30px;
+  border-radius: 7px;
+  border: none;
+  background: #7B78F0;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s;
+  font-family: inherit;
+}
+
+.addRegionSaveBtn:hover:not(:disabled) {
+  background: #5B57D1;
+}
+
+.addRegionSaveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.addRegionCancelBtn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid #E4E4EC;
+  background: transparent;
+  color: #ADADC0;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+
+.addRegionCancelBtn:hover {
+  background: #F8F8FC;
+  color: #1A1A2E;
+}
+
 
 /* ── Published Toast ── */
 .publishToast {

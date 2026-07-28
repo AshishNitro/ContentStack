@@ -448,6 +448,90 @@ export const verifyDomain = async (req: Request, res: Response) => {
   }
 };
 
+export const addRegion = async (req: Request, res: Response) => {
+  try {
+    const domainId = Number(req.params.id);
+    const { name, slug } = req.body as { name?: string; slug?: string };
+
+    if (!domainId || isNaN(domainId)) {
+      return res.status(400).json({ error: 'Valid domainId is required.' });
+    }
+    if (!name?.trim()) {
+      return res.status(400).json({ error: 'Region name is required.' });
+    }
+    if (!slug?.trim()) {
+      return res.status(400).json({ error: 'Region slug is required.' });
+    }
+
+    const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (!cleanSlug) {
+      return res.status(400).json({ error: 'Slug must contain at least one alphanumeric character.' });
+    }
+
+    // Check domain exists
+    const domainCheck = await pool.query<Domain>('SELECT id FROM domains WHERE id = $1', [domainId]);
+    if (!domainCheck.rows.length) {
+      return res.status(404).json({ error: 'Domain not found.' });
+    }
+
+    // Check slug uniqueness within domain
+    const slugCheck = await pool.query(
+      'SELECT id FROM regions WHERE domain_id = $1 AND slug = $2',
+      [domainId, cleanSlug]
+    );
+    if (slugCheck.rows.length > 0) {
+      return res.status(409).json({ error: `A region with slug "/${cleanSlug}" already exists for this domain.` });
+    }
+
+    await pool.query(
+      'INSERT INTO regions (domain_id, name, slug) VALUES ($1, $2, $3)',
+      [domainId, name.trim(), cleanSlug]
+    );
+
+    const domains = await getDomainsWithRegions();
+    const updated = domains.find(d => d.id === domainId);
+    res.status(201).json(updated);
+  } catch (error: any) {
+    console.error('Failed to add region', error);
+    res.status(500).json({ error: error.message || 'Failed to add region' });
+  }
+};
+
+export const deleteRegion = async (req: Request, res: Response) => {
+  try {
+    const domainId = Number(req.params.id);
+    const regionId = Number(req.params.regionId);
+
+    if (isNaN(domainId) || isNaN(regionId)) {
+      return res.status(400).json({ error: 'Valid domainId and regionId are required.' });
+    }
+
+    // Verify region belongs to domain
+    const regionCheck = await pool.query<Region>(
+      'SELECT id FROM regions WHERE id = $1 AND domain_id = $2',
+      [regionId, domainId]
+    );
+    if (!regionCheck.rows.length) {
+      return res.status(404).json({ error: 'Region not found for this domain.' });
+    }
+
+    // Soft-nullify posts that referenced this region (they become global)
+    await pool.query(
+      'UPDATE posts SET region_id = NULL WHERE region_id = $1 AND domain_id = $2',
+      [regionId, domainId]
+    );
+
+    await pool.query('DELETE FROM regions WHERE id = $1', [regionId]);
+
+    const domains = await getDomainsWithRegions();
+    const updated = domains.find(d => d.id === domainId);
+    res.status(200).json(updated);
+  } catch (error: any) {
+    console.error('Failed to delete region', error);
+    res.status(500).json({ error: error.message || 'Failed to delete region' });
+  }
+};
+
 export const getPosts = async (req: Request, res: Response) => {
   try {
     const domainId = req.query.domainId ? Number(req.query.domainId) : null;

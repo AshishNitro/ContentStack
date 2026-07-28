@@ -1,31 +1,97 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Domain, createPost } from '../services/api';
+import { Domain, Region, createPost, addRegion, deleteRegion } from '../services/api';
 import styles from './Editor.module.css';
 
 interface EditorProps {
   activeDomain: Domain;
+  onDomainUpdated: (domain: Domain) => void;
 }
 
-// Country metadata: slug → flag + display label
+// ── Expanded country metadata: slug → flag + display label ─────────────────────
 const COUNTRY_META: Record<string, { flag: string; label: string }> = {
   us: { flag: '🇺🇸', label: 'United States' },
   in: { flag: '🇮🇳', label: 'India' },
   eu: { flag: '🇪🇺', label: 'Europe' },
   uk: { flag: '🇬🇧', label: 'United Kingdom' },
+  gb: { flag: '🇬🇧', label: 'United Kingdom' },
   au: { flag: '🇦🇺', label: 'Australia' },
   ca: { flag: '🇨🇦', label: 'Canada' },
   de: { flag: '🇩🇪', label: 'Germany' },
   fr: { flag: '🇫🇷', label: 'France' },
   jp: { flag: '🇯🇵', label: 'Japan' },
   br: { flag: '🇧🇷', label: 'Brazil' },
+  ae: { flag: '🇦🇪', label: 'United Arab Emirates' },
+  sg: { flag: '🇸🇬', label: 'Singapore' },
+  mx: { flag: '🇲🇽', label: 'Mexico' },
+  za: { flag: '🇿🇦', label: 'South Africa' },
+  ng: { flag: '🇳🇬', label: 'Nigeria' },
+  nz: { flag: '🇳🇿', label: 'New Zealand' },
+  ar: { flag: '🇦🇷', label: 'Argentina' },
+  it: { flag: '🇮🇹', label: 'Italy' },
+  es: { flag: '🇪🇸', label: 'Spain' },
+  nl: { flag: '🇳🇱', label: 'Netherlands' },
+  kr: { flag: '🇰🇷', label: 'South Korea' },
+  id: { flag: '🇮🇩', label: 'Indonesia' },
+  pk: { flag: '🇵🇰', label: 'Pakistan' },
+  sa: { flag: '🇸🇦', label: 'Saudi Arabia' },
+  tr: { flag: '🇹🇷', label: 'Turkey' },
+  ph: { flag: '🇵🇭', label: 'Philippines' },
+  th: { flag: '🇹🇭', label: 'Thailand' },
+  my: { flag: '🇲🇾', label: 'Malaysia' },
+  cn: { flag: '🇨🇳', label: 'China' },
+  ru: { flag: '🇷🇺', label: 'Russia' },
+  pl: { flag: '🇵🇱', label: 'Poland' },
+  se: { flag: '🇸🇪', label: 'Sweden' },
+  ch: { flag: '🇨🇭', label: 'Switzerland' },
+  no: { flag: '🇳🇴', label: 'Norway' },
+  dk: { flag: '🇩🇰', label: 'Denmark' },
+  fi: { flag: '🇫🇮', label: 'Finland' },
+  be: { flag: '🇧🇪', label: 'Belgium' },
+  at: { flag: '🇦🇹', label: 'Austria' },
+  pt: { flag: '🇵🇹', label: 'Portugal' },
+  gr: { flag: '🇬🇷', label: 'Greece' },
+  il: { flag: '🇮🇱', label: 'Israel' },
+  eg: { flag: '🇪🇬', label: 'Egypt' },
+  ke: { flag: '🇰🇪', label: 'Kenya' },
+  gh: { flag: '🇬🇭', label: 'Ghana' },
+  cl: { flag: '🇨🇱', label: 'Chile' },
+  co: { flag: '🇨🇴', label: 'Colombia' },
+  pe: { flag: '🇵🇪', label: 'Peru' },
+  ve: { flag: '🇻🇪', label: 'Venezuela' },
+  bd: { flag: '🇧🇩', label: 'Bangladesh' },
+  lk: { flag: '🇱🇰', label: 'Sri Lanka' },
+  np: { flag: '🇳🇵', label: 'Nepal' },
+  mm: { flag: '🇲🇲', label: 'Myanmar' },
+  vn: { flag: '🇻🇳', label: 'Vietnam' },
+  hk: { flag: '🇭🇰', label: 'Hong Kong' },
+  tw: { flag: '🇹🇼', label: 'Taiwan' },
 };
 
 function getCountryMeta(slug: string) {
-  return COUNTRY_META[slug] ?? { flag: '🌐', label: slug.toUpperCase() };
+  return COUNTRY_META[slug.toLowerCase()] ?? { flag: '🌐', label: slug.toUpperCase() };
 }
 
-export default function Editor({ activeDomain }: EditorProps) {
+/** Auto-suggest the flag + label when user types a known slug */
+function suggestFromSlug(slug: string): { flag: string; label: string } | null {
+  const clean = slug.trim().toLowerCase().replace(/[^a-z]/g, '');
+  if (clean.length >= 2 && COUNTRY_META[clean]) return COUNTRY_META[clean];
+  return null;
+}
+
+/** Convert a region name to a 2-letter slug suggestion */
+function slugifyName(name: string): string {
+  // Try to match known labels
+  const lower = name.trim().toLowerCase();
+  const match = Object.entries(COUNTRY_META).find(
+    ([, v]) => v.label.toLowerCase() === lower
+  );
+  if (match) return match[0];
+  // Fallback: first 2 alpha chars
+  return name.replace(/[^a-z]/gi, '').slice(0, 2).toLowerCase();
+}
+
+export default function Editor({ activeDomain, onDomainUpdated }: EditorProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [regionId, setRegionId] = useState<number | ''>('');
@@ -33,6 +99,24 @@ export default function Editor({ activeDomain }: EditorProps) {
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'write' | 'split' | 'preview'>('write');
+
+  // ── Add-region form state ──────────────────────────────────────────────────
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newSlug, setNewSlug] = useState('');
+  const [newFlag, setNewFlag] = useState('');
+  const [addError, setAddError] = useState('');
+  const [isSavingRegion, setIsSavingRegion] = useState(false);
+  const [deletingRegionId, setDeletingRegionId] = useState<number | null>(null);
+
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus name input when form opens
+  useEffect(() => {
+    if (showAddForm) {
+      setTimeout(() => nameInputRef.current?.focus(), 50);
+    }
+  }, [showAddForm]);
 
   const selectedRegion = regionId
     ? activeDomain.regions.find(r => r.id === regionId)
@@ -99,6 +183,84 @@ export default function Editor({ activeDomain }: EditorProps) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  // ── Region handlers ────────────────────────────────────────────────────────
+
+  const handleNameChange = (value: string) => {
+    setNewName(value);
+    setAddError('');
+    // Auto-fill slug and flag from name
+    const slugSuggestion = slugifyName(value);
+    if (slugSuggestion) {
+      setNewSlug(slugSuggestion);
+      const suggestion = suggestFromSlug(slugSuggestion);
+      if (suggestion) setNewFlag(suggestion.flag);
+    }
+  };
+
+  const handleSlugChange = (value: string) => {
+    const cleaned = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    setNewSlug(cleaned);
+    setAddError('');
+    // Auto-fill flag from slug
+    const suggestion = suggestFromSlug(cleaned);
+    if (suggestion) {
+      setNewFlag(suggestion.flag);
+      if (!newName) setNewName(suggestion.label);
+    }
+  };
+
+  const handleAddRegion = async () => {
+    if (!newName.trim() || !newSlug.trim()) {
+      setAddError('Both name and slug are required.');
+      return;
+    }
+    setIsSavingRegion(true);
+    setAddError('');
+    try {
+      const updated = await addRegion(activeDomain.id, {
+        name: newName.trim(),
+        slug: newSlug.trim(),
+      });
+      onDomainUpdated(updated);
+      // Auto-select the newly added region
+      const newRegion = updated.regions.find(r => r.slug === newSlug.trim());
+      if (newRegion) setRegionId(newRegion.id);
+      // Reset form
+      setShowAddForm(false);
+      setNewName('');
+      setNewSlug('');
+      setNewFlag('');
+    } catch (err: any) {
+      setAddError(err.message || 'Failed to add region');
+    } finally {
+      setIsSavingRegion(false);
+    }
+  };
+
+  const handleDeleteRegion = async (region: Region, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingRegionId(region.id);
+    try {
+      const updated = await deleteRegion(activeDomain.id, region.id);
+      onDomainUpdated(updated);
+      // If the deleted region was selected, reset to Global
+      if (regionId === region.id) setRegionId('');
+    } catch (err: any) {
+      console.error('Failed to delete region:', err.message);
+    } finally {
+      setDeletingRegionId(null);
+    }
+  };
+
+  const closeMenu = () => {
+    setIsRegionOpen(false);
+    setShowAddForm(false);
+    setNewName('');
+    setNewSlug('');
+    setNewFlag('');
+    setAddError('');
   };
 
   const publishLabel =
@@ -239,13 +401,13 @@ export default function Editor({ activeDomain }: EditorProps) {
 
             {isRegionOpen && (
               <>
-                <div className={styles.backdrop} onClick={() => setIsRegionOpen(false)} />
+                <div className={styles.backdrop} onClick={closeMenu} />
                 <div className={styles.customSelectMenu}>
 
-                  {/* Global option */}
+                  {/* ── Global option ── */}
                   <div
                     className={`${styles.customSelectOption} ${regionId === '' ? styles.selectedOption : ''}`}
-                    onClick={() => { setRegionId(''); setIsRegionOpen(false); }}
+                    onClick={() => { setRegionId(''); closeMenu(); }}
                   >
                     <div className={styles.optionRow}>
                       <span className={styles.optionFlag}>🌐</span>
@@ -262,27 +424,121 @@ export default function Editor({ activeDomain }: EditorProps) {
                     <div className={styles.menuDivider} />
                   )}
 
-                    {activeDomain.regions.map((r) => {
+                  {/* ── Region rows ── */}
+                  {activeDomain.regions.map((r) => {
                     const meta = getCountryMeta(r.slug);
                     const liveSlug = previewSlug(title) || 'post-title';
                     const url  = buildPublishUrl(liveSlug, r.slug);
+                    const isDeleting = deletingRegionId === r.id;
                     return (
                       <div
                         key={r.id}
-                        className={`${styles.customSelectOption} ${regionId === r.id ? styles.selectedOption : ''}`}
-                        onClick={() => { setRegionId(r.id); setIsRegionOpen(false); }}
+                        className={`${styles.customSelectOption} ${styles.regionOptionRow} ${regionId === r.id ? styles.selectedOption : ''} ${isDeleting ? styles.deletingOption : ''}`}
+                        onClick={() => { if (!isDeleting) { setRegionId(r.id); closeMenu(); } }}
                       >
                         <div className={styles.optionRow}>
-                          <span className={styles.optionFlag}>{meta.flag}</span>
+                          <span className={styles.optionFlag}>
+                            {isDeleting ? <span className={styles.deletingSpinner}>⟳</span> : meta.flag}
+                          </span>
                           <div className={styles.optionInfo}>
                             <span className={styles.optionName}>{meta.label}</span>
                             <span className={styles.optionDesc}>Publishes to → {url}</span>
                           </div>
                           <span className={styles.optionSlug}>/{r.slug}</span>
+                          <button
+                            type="button"
+                            className={styles.regionDeleteBtn}
+                            title={`Remove ${meta.label} region`}
+                            disabled={isDeleting}
+                            onClick={(e) => handleDeleteRegion(r, e)}
+                          >
+                            ×
+                          </button>
                         </div>
                       </div>
                     );
                   })}
+
+                  {/* ── Add Region section ── */}
+                  <div className={styles.menuDivider} />
+
+                  {!showAddForm ? (
+                    <button
+                      type="button"
+                      className={styles.addRegionBtn}
+                      onClick={(e) => { e.stopPropagation(); setShowAddForm(true); }}
+                    >
+                      <span className={styles.addRegionIcon}>+</span>
+                      Add Region
+                    </button>
+                  ) : (
+                    <div
+                      className={styles.addRegionForm}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className={styles.addRegionFormHeader}>
+                        <span className={styles.addRegionFormTitle}>New Region</span>
+                        <button
+                          type="button"
+                          className={styles.addRegionFormClose}
+                          onClick={() => { setShowAddForm(false); setAddError(''); }}
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className={styles.addRegionInputRow}>
+                        <span className={styles.addRegionFlagPreview}>
+                          {newFlag || '🏳️'}
+                        </span>
+                        <div className={styles.addRegionFields}>
+                          <input
+                            ref={nameInputRef}
+                            type="text"
+                            className={styles.addRegionInput}
+                            placeholder="Region name (e.g. United Arab Emirates)"
+                            value={newName}
+                            onChange={(e) => handleNameChange(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddRegion()}
+                          />
+                          <div className={styles.addRegionSlugRow}>
+                            <span className={styles.addRegionSlugPrefix}>/</span>
+                            <input
+                              type="text"
+                              className={`${styles.addRegionInput} ${styles.addRegionSlugInput}`}
+                              placeholder="slug (e.g. ae)"
+                              value={newSlug}
+                              onChange={(e) => handleSlugChange(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && handleAddRegion()}
+                              maxLength={10}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {addError && (
+                        <div className={styles.addRegionError}>{addError}</div>
+                      )}
+
+                      <div className={styles.addRegionActions}>
+                        <button
+                          type="button"
+                          className={styles.addRegionSaveBtn}
+                          onClick={handleAddRegion}
+                          disabled={isSavingRegion || !newName.trim() || !newSlug.trim()}
+                        >
+                          {isSavingRegion ? 'Saving…' : 'Save Region'}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.addRegionCancelBtn}
+                          onClick={() => { setShowAddForm(false); setAddError(''); setNewName(''); setNewSlug(''); setNewFlag(''); }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -364,4 +620,3 @@ export default function Editor({ activeDomain }: EditorProps) {
     </div>
   );
 }
-

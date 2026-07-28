@@ -33,6 +33,12 @@ export default function Home() {
     loadDomains();
   }, []);
 
+  /** Called by Editor after a region is added or deleted.
+   *  Patches the specific domain in-place so regions update instantly. */
+  const handleDomainUpdated = (updated: Domain) => {
+    setDomains(prev => prev.map(d => (d.id === updated.id ? updated : d)));
+  };
+
   const activeDomain = domains.find(domain => domain.id === activeDomainId);
   const accentColors = ['#7568f0', '#f0a368', '#68f0b7'];
   const activeAccent = activeDomainId
@@ -59,7 +65,7 @@ export default function Home() {
         {isLoading ? (
           <div className={styles.centerMessage}>Loading environments...</div>
         ) : activeDomain ? (
-          <Editor activeDomain={activeDomain} />
+          <Editor activeDomain={activeDomain} onDomainUpdated={handleDomainUpdated} />
         ) : (
           <div className={styles.centerMessage}>No domains available.</div>
         )}
