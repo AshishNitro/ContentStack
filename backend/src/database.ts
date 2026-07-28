@@ -36,6 +36,7 @@ export interface Post {
   domain_id: number;
   region_id: number | null;
   title: string;
+  slug: string;
   content: string;
   created_at: string;
 }
@@ -55,6 +56,12 @@ export async function ensureDomainSchema() {
     WHERE host IS NULL;
 
     CREATE UNIQUE INDEX IF NOT EXISTS domains_host_unique ON domains (LOWER(host));
+
+    ALTER TABLE posts ADD COLUMN IF NOT EXISTS slug VARCHAR(500);
+
+    UPDATE posts
+    SET slug = LOWER(REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(title, '[^a-zA-Z0-9\\s-]', '', 'g'), '\\s+', '-', 'g'), '-+', '-', 'g'))
+    WHERE slug IS NULL OR slug = '';
   `);
 }
 

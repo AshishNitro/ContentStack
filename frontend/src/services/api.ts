@@ -34,6 +34,7 @@ export interface Post {
   domain_id: number;
   region_id: number | null;
   title: string;
+  slug: string;
   content: string;
   created_at: string;
 }
@@ -64,6 +65,12 @@ export async function fetchPosts(
 export async function fetchPost(postId: number, domainId: number): Promise<Post> {
   const res = await fetch(`${API_BASE}/posts/${postId}?domainId=${domainId}`);
   if (!res.ok) throw new Error('Failed to fetch post');
+  return res.json();
+}
+
+export async function fetchPostBySlug(slug: string, domainId: number): Promise<Post> {
+  const res = await fetch(`${API_BASE}/posts/slug/${encodeURIComponent(slug)}?domainId=${domainId}`);
+  if (!res.ok) throw new Error('Post not found');
   return res.json();
 }
 

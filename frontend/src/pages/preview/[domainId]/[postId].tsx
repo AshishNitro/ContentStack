@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
-import { Domain, Post, fetchDomains, fetchPost } from '../../../services/api';
+import { Domain, Post, fetchDomains, fetchPost, fetchPostBySlug } from '../../../services/api';
 import styles from '../../../styles/PostDetail.module.css';
 
 const COUNTRY_META: Record<string, { flag: string; label: string }> = {
@@ -58,7 +58,14 @@ export default function PostDetail() {
           setIsCustomDomainView(normalizeHost(window.location.host) === normalizeHost(found.host));
         }
 
-        const postData = await fetchPost(Number(postId), Number(domainId));
+        // postId can be a numeric ID (CMS preview) or a slug (custom domain)
+        const postIdStr = String(postId);
+        const isNumericId = /^\d+$/.test(postIdStr);
+
+        const postData = isNumericId
+          ? await fetchPost(Number(postIdStr), Number(domainId))
+          : await fetchPostBySlug(postIdStr, Number(domainId));
+
         setPost(postData);
       } catch (loadError) {
         setError('Post not found.');

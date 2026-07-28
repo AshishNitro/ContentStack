@@ -2,6 +2,18 @@ import { Request, Response } from 'express';
 import pool, { Post, Domain, Region } from '../database';
 import dns from 'dns/promises';
 
+// ── Slug generation ───────────────────────────────────────────────────────────
+function generateSlug(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')   // remove non-alphanumeric except spaces and hyphens
+    .replace(/\s+/g, '-')             // spaces → hyphens
+    .replace(/-+/g, '-')              // collapse consecutive hyphens
+    .replace(/^-+|-+$/g, '')          // strip leading/trailing hyphens
+    || 'post';                         // fallback
+}
+
 // ── Vercel integration types ───────────────────────────────────────────────────
 type VercelRegStatus = 'added' | 'already_exists' | 'credentials_missing' | 'failed';
 
@@ -178,12 +190,36 @@ export const getPost = async (req: Request, res: Response) => {
   }
 };
 
+export const getPostBySlug = async (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+    const domainId = req.query.domainId ? Number(req.query.domainId) : null;
+
+    if (!domainId) {
+      return res.status(400).json({ error: 'domainId is required.' });
+    }
+
+    const result = await pool.query<Post>(
+      'SELECT * FROM posts WHERE slug = $1 AND domain_id = $2',
+      [slug, domainId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Failed to fetch post by slug', error);
+    res.status(500).json({ error: 'Failed to fetch post' });
+  }
+};
+
 // Types for requests
 interface CreatePostRequest {
   domainId: number;
   regionId?: number;
   title: string;
   content: string;
+  slug?: string;
 }
 
 export const getDomains = async (req: Request, res: Response) => {
@@ -487,15 +523,31 @@ export const createPost = async (req: Request<{}, {}, CreatePostRequest>, res: R
       }
     }
 
+    // Generate a URL-safe slug from the title
+    const baseSlug = generateSlug(title);
+
+    // Ensure slug uniqueness within the domain by appending a suffix if needed
+    let slug = baseSlug;
+    let attempt = 0;
+    while (true) {
+      const existing = await pool.query(
+        'SELECT id FROM posts WHERE domain_id = $1 AND slug = $2',
+        [domainId, slug]
+      );
+      if (existing.rows.length === 0) break;
+      attempt++;
+      slug = `${baseSlug}-${attempt}`;
+    }
+
     const query = `
-      INSERT INTO posts (domain_id, region_id, title, content)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO posts (domain_id, region_id, title, slug, content)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `;
-    const values = [domainId, regionId || null, title, content];
+    const values = [domainId, regionId || null, title, slug, content];
 
     const result = await pool.query<Post>(query, values);
-    
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Failed to create post', error);

@@ -38,23 +38,36 @@ export default function Editor({ activeDomain }: EditorProps) {
     ? activeDomain.regions.find(r => r.id === regionId)
     : null;
 
+  /** Client-side slug preview — mirrors the server's generateSlug logic */
+  const previewSlug = (rawTitle: string): string =>
+    rawTitle
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'post';
+
   /** Build the URL where the post will be publicly accessible */
-  const buildPublishUrl = (slug?: string): string => {
+  const buildPublishUrl = (postSlug: string, regionSlug?: string): string => {
     const base = activeDomain.url.replace(/\/$/, '');
-    return slug ? `${base}/${slug}` : base;
+    if (regionSlug) {
+      return `${base}/${regionSlug}/${postSlug}`;
+    }
+    return `${base}/${postSlug}`;
   };
 
   const handleSave = async () => {
     if (!title || !content) return;
     setStatus('saving');
     try {
-      await createPost({
+      const post = await createPost({
         domainId: activeDomain.id,
         regionId: regionId ? Number(regionId) : undefined,
         title,
         content,
       });
-      const url = buildPublishUrl(selectedRegion?.slug);
+      const url = buildPublishUrl(post.slug, selectedRegion?.slug);
       setPublishedUrl(url);
       setStatus('saved');
       setTimeout(() => {
@@ -93,40 +106,45 @@ export default function Editor({ activeDomain }: EditorProps) {
     status === 'saved'  ? '✓ Published' :
     'Publish';
 
-  const renderPreviewContent = () => (
-    <div className={styles.previewCard}>
-      <div className={styles.previewMeta}>
-        <span className={styles.previewDate}>
-          {new Date().toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          })}
-        </span>
-        {selectedRegion && (
-          <span className={styles.previewCountryChip}>
-            {getCountryMeta(selectedRegion.slug).flag} {getCountryMeta(selectedRegion.slug).label}
+  const renderPreviewContent = () => {
+    const liveSlug = previewSlug(title);
+    const liveUrl = buildPublishUrl(liveSlug || 'post-title', selectedRegion?.slug);
+
+    return (
+      <div className={styles.previewCard}>
+        <div className={styles.previewMeta}>
+          <span className={styles.previewDate}>
+            {new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
           </span>
-        )}
-        <span className={styles.previewDomainChip}>
-          {buildPublishUrl(selectedRegion?.slug)}
-        </span>
+          {selectedRegion && (
+            <span className={styles.previewCountryChip}>
+              {getCountryMeta(selectedRegion.slug).flag} {getCountryMeta(selectedRegion.slug).label}
+            </span>
+          )}
+          <span className={styles.previewDomainChip} title="Live publish URL">
+            {liveUrl}
+          </span>
+        </div>
+        <h1 className={styles.previewTitle}>
+          {title.trim() ? title : <span className={styles.placeholderTitle}>Untitled Post</span>}
+        </h1>
+        <div className={styles.previewDivider} />
+        <div className={styles.renderedMarkdown}>
+          {content.trim() ? (
+            <ReactMarkdown>{content}</ReactMarkdown>
+          ) : (
+            <p className={styles.placeholderText}>
+              No content written yet. Type in the markdown editor to see your live preview here.
+            </p>
+          )}
+        </div>
       </div>
-      <h1 className={styles.previewTitle}>
-        {title.trim() ? title : <span className={styles.placeholderTitle}>Untitled Post</span>}
-      </h1>
-      <div className={styles.previewDivider} />
-      <div className={styles.renderedMarkdown}>
-        {content.trim() ? (
-          <ReactMarkdown>{content}</ReactMarkdown>
-        ) : (
-          <p className={styles.placeholderText}>
-            No content written yet. Type in the markdown editor to see your live preview here.
-          </p>
-        )}
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className={styles.editorContainer}>
@@ -233,7 +251,9 @@ export default function Editor({ activeDomain }: EditorProps) {
                       <span className={styles.optionFlag}>🌐</span>
                       <div className={styles.optionInfo}>
                         <span className={styles.optionName}>Global (All regions)</span>
-                        <span className={styles.optionDesc}>Visible everywhere · {activeDomain.url}</span>
+                        <span className={styles.optionDesc}>
+                          Publishes to → {buildPublishUrl(previewSlug(title) || 'post-title')}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -242,9 +262,10 @@ export default function Editor({ activeDomain }: EditorProps) {
                     <div className={styles.menuDivider} />
                   )}
 
-                  {activeDomain.regions.map((r) => {
+                    {activeDomain.regions.map((r) => {
                     const meta = getCountryMeta(r.slug);
-                    const url  = buildPublishUrl(r.slug);
+                    const liveSlug = previewSlug(title) || 'post-title';
+                    const url  = buildPublishUrl(liveSlug, r.slug);
                     return (
                       <div
                         key={r.id}

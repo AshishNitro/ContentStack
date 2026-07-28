@@ -9,6 +9,7 @@ import {
   getPosts,
   createPost,
   getPost,
+  getPostBySlug,
 } from '../controllers/postController';
 
 const router = Router();
@@ -23,6 +24,8 @@ router.post('/domains/:id/verify', verifyDomain);
 
 // Post routes
 router.get('/posts', getPosts);
+// Slug route must come BEFORE /:id so "slug/my-post-title" doesn't match the numeric :id pattern
+router.get('/posts/slug/:slug', getPostBySlug);
 router.get('/posts/:id', getPost);
 router.post('/posts', createPost);
 
