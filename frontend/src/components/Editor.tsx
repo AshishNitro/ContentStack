@@ -68,8 +68,9 @@ const COUNTRY_META: Record<string, { flag: string; label: string }> = {
   tw: { flag: '🇹🇼', label: 'Taiwan' },
 };
 
-function getCountryMeta(slug: string) {
-  return COUNTRY_META[slug.toLowerCase()] ?? { flag: '🌐', label: slug.toUpperCase() };
+/** Returns only the flag emoji for a slug — label always comes from the DB region name */
+function getRegionFlag(slug: string): string {
+  return COUNTRY_META[slug.toLowerCase()]?.flag ?? '🌐';
 }
 
 /** Auto-suggest the flag + label when user types a known slug */
@@ -284,7 +285,7 @@ export default function Editor({ activeDomain, onDomainUpdated }: EditorProps) {
           </span>
           {selectedRegion && (
             <span className={styles.previewCountryChip}>
-              {getCountryMeta(selectedRegion.slug).flag} {getCountryMeta(selectedRegion.slug).label}
+              {getRegionFlag(selectedRegion.slug)} {selectedRegion.name}
             </span>
           )}
           <span className={styles.previewDomainChip} title="Live publish URL">
@@ -339,7 +340,7 @@ export default function Editor({ activeDomain, onDomainUpdated }: EditorProps) {
             <>
               <span className={styles.metaArrow}>›</span>
               <span className={styles.metaCountryChip}>
-                {getCountryMeta(selectedRegion.slug).flag}{' '}
+                {getRegionFlag(selectedRegion.slug)}{' '}
                 <span className={styles.metaCountrySlug}>/{selectedRegion.slug}</span>
               </span>
             </>
@@ -393,7 +394,7 @@ export default function Editor({ activeDomain, onDomainUpdated }: EditorProps) {
               <span className={styles.triggerLabel}>Target audience:</span>
               <span className={styles.triggerValue}>
                 {selectedRegion
-                  ? `${getCountryMeta(selectedRegion.slug).flag} ${getCountryMeta(selectedRegion.slug).label}`
+                  ? `${getRegionFlag(selectedRegion.slug)} ${selectedRegion.name}`
                   : '🌐 Global'}
               </span>
               <span className={styles.triggerIcon}>▾</span>
@@ -426,7 +427,7 @@ export default function Editor({ activeDomain, onDomainUpdated }: EditorProps) {
 
                   {/* ── Region rows ── */}
                   {activeDomain.regions.map((r) => {
-                    const meta = getCountryMeta(r.slug);
+                    const flag = getRegionFlag(r.slug);
                     const liveSlug = previewSlug(title) || 'post-title';
                     const url  = buildPublishUrl(liveSlug, r.slug);
                     const isDeleting = deletingRegionId === r.id;
@@ -438,10 +439,10 @@ export default function Editor({ activeDomain, onDomainUpdated }: EditorProps) {
                       >
                         <div className={styles.optionRow}>
                           <span className={styles.optionFlag}>
-                            {isDeleting ? <span className={styles.deletingSpinner}>⟳</span> : meta.flag}
+                            {isDeleting ? <span className={styles.deletingSpinner}>⟳</span> : flag}
                           </span>
                           <div className={styles.optionInfo}>
-                            <span className={styles.optionName}>{meta.label}</span>
+                            <span className={styles.optionName}>{r.name}</span>
                             <span className={styles.optionDesc}>Publishes to → {url}</span>
                           </div>
                           <span className={styles.optionSlug}>/{r.slug}</span>
